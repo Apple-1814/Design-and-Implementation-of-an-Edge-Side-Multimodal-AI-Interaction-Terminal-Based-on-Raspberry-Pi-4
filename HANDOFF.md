@@ -5,7 +5,7 @@
 
 ## 当前阶段
 
-实测评估完成；CMSIS-DAP 烧录、9600 UART、**M1a 命令协议（PING/LED/LCD/LCDCLR）** 均已验证。下一步 M1b（ADC/PWM）与 M2（FastAPI 后端）。
+实测评估完成；CMSIS-DAP 烧录、9600 UART、**M1a/M1b 命令协议（PING/LED/LCD/LCDCLR/ADC/PWM）** 均已验证（串口）。下一步 M2（FastAPI 后端）。
 
 ## 已完成
 
@@ -34,21 +34,19 @@
 
 | # | 事项 | 影响 | 下一步 |
 |---|---|---|---|
-| 1 | M1b：ADC/PWM 命令 | 完成 P0 硬件控制范围 | 从 `HAL_07_ADC1_TEST`、`HAL_10_1_Channel_PWM_Frq_TEST` 移植 BSP，扩展命令 |
-| 2 | M2：Pi 后端 | 串口/HTTP 联调 | FastAPI + 持久串口 + `/api/device` |
-| 3 | 组内分工 | 任务拆分与报告分工 | 用户确认 8–10 人角色 |
-| 4 | 指导老师要求 | 是否强制 Proteus/焊接/PCB | 用户确认 |
-| 5 | 前端方案 | Vue 构建版 vs 无构建 HTML | 推荐 PC 构建 Vue，Pi 静态托管 |
-| 6 | 模型组合 | 0.5B 路由 + 1.5B 对话 vs 只用 0.5B | benchmark 后定 |
-| 7 | 摄像头 | VLM 拍照问答 | 当前无摄像头；先做上传图片，摄像头可选 |
+| 1 | M2：Pi 后端 | 串口/HTTP 联调 | FastAPI + 持久串口 + `/api/device` |
+| 2 | 组内分工 | 任务拆分与报告分工 | 用户确认 8–10 人角色 |
+| 3 | 指导老师要求 | 是否强制 Proteus/焊接/PCB | 用户确认 |
+| 4 | 前端方案 | Vue 构建版 vs 无构建 HTML | 推荐 PC 构建 Vue，Pi 静态托管 |
+| 5 | 模型组合 | 0.5B 路由 + 1.5B 对话 vs 只用 0.5B | benchmark 后定 |
+| 6 | 摄像头 | VLM 拍照问答 | 当前无摄像头；先做上传图片，摄像头可选 |
 
 ## 下一步（按顺序）
 
-1. M1b：补 ADC/PWM 命令，重编译/烧录/实测。
-2. 提交并推送当前工程到 GitHub（排除 `.agents/`、指导书、个人作业）。
-3. M2：Pi venv + FastAPI + 持久串口 + `/api/device`。
-4. M3：下载 Qwen2.5-0.5B/1.5B，llama.cpp benchmark。
-5. M4：前端骨架（PC 构建 Vue，Pi 静态托管）。
+1. 提交并推送 M1b（ADC/PWM）改动。
+2. M2：Pi venv + FastAPI + 持久串口 + `/api/device`。
+3. M3：下载 Qwen2.5-0.5B/1.5B，llama.cpp benchmark。
+4. M4：前端骨架（PC 构建 Vue，Pi 静态托管）。
 
 ## 重要决策
 
@@ -69,6 +67,7 @@
 - **VCP 仅 9600**：`stty -F /dev/ttyACM0 115200` 会阻塞（多个进程卡住）；高波特率需 USB-TTL。命令链路保持 9600。
 - **VCP 仅接受单次持久会话**：后端必须常开串口句柄；烧录/复位后若写阻塞，重新枚举 USB（`authorized 0/1`）。
 - **主循环已移除 `LCD_Proc()`**：原演示会每 500ms 写 `i num`，覆盖命令显示的 LCD 内容。
+- **PWM/ADC 物理验证待补**：PA2 0/50/100% 电压、PB12 电位器变化需万用表/示波器复测；串口回读已通过。
 - **板载 VCP 早期出现过写阻塞**：复测已恢复；演示前做长稳测试，必要时保留 USB-TTL 备用。
 - **无摄像头**：VLM 只能上传图片。
 - **Python 3.8**：FastAPI/uvicorn/pydantic 需固定兼容版本。
@@ -98,5 +97,6 @@
 | 2026-11-18 | M1 烧录 | `pyocd flash ... command_firmware.hex` | 通过，擦 26 页/写 26 页/4.32 kB/s |
 | 2026-11-18 | M1 命令 | 持久串口会话 | `OK PONG`、`OK LED 1 1/0`、`OK LEDALL`、`OK LCD`、`OK LCDCLR`、`ERR UNKNOWN` |
 | 2026-11-18 | M1 物理现象 | 人工观察 | LED1 亮/灭、全亮/全灭正确；LCD 清屏后仅 `Hello` |
-| 2026-11-18 | ADC/PWM | 持久串口会话 | `ERR UNSUPPORTED`（M1b 待实现） |
+| 2026-11-18 | M1b ADC/PWM | 持久串口会话 | `OK ADC 1759`；`OK PWM 1 0/50/100`；`PWM?` 回读一致 |
+| — | PWM 物理波形 | PA2 万用表/示波器 | 待 HIL（0/50/100% ≈ 0/1.65/3.3V） |
 | — | LLM benchmark | llama.cpp + 0.5B/1.5B | 未执行 |

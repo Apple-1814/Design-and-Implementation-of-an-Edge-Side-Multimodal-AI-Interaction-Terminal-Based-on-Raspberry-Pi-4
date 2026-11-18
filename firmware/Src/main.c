@@ -4,6 +4,8 @@
 #include "lcd\bsp_lcd.h"
 #include "usart\bsp_usart.h"
 #include "bsp_command.h"
+#include "adc/bsp_adc.h"
+#include "pwm/bsp_pwm.h"
 #include <stdio.h>
 
 union float_bytes {
@@ -55,11 +57,17 @@ int main(void)
   LCD_Init();
   LCD_Clear(White);
   LCD_SetBackColor(White);
-  LCD_SetTextColor(Blue);	
+  LCD_SetTextColor(Blue);
+  LED_Disp(0x01);
+  ADC1_Init();
+  LED_Disp(0x03);
+  PWM_Output_TIM15_Init();
+  LED_Disp(0x07);
 
   USART1_Init();
   HAL_UART_Receive_IT(&huart1, &rx_buffer, 1);
   CMD_Init();
+  LED_Disp(0x0F);
 
 
   while (1)

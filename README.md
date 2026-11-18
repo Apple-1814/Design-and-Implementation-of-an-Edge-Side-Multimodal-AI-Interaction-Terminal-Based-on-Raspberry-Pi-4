@@ -24,7 +24,7 @@ STM32G431（蓝桥杯 CT117E-M4）
 | 里程碑 | 状态 |
 |---|---|
 | M0 环境与链路 | ✅ Pi 4B 8GB、Ubuntu 20.04、CMSIS-DAP 烧录、9600 UART 双向、原固件备份 |
-| M1 固件命令协议 | ✅ M1a 已验证：PING/LED/LCD/LCDCLR；ADC/PWM 待 M1b |
+| M1 固件命令协议 | ✅ M1a/M1b 已验证：PING/LED/LCD/LCDCLR/ADC/PWM（串口）；PWM 物理波形待 HIL |
 | M2 Pi 后端 | ⏳ 待开始 |
 | M3 LLM 部署 | ⏳ 待开始 |
 | M4 前端 | ⏳ 待开始 |

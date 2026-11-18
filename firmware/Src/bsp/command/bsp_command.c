@@ -2,6 +2,8 @@
 #include "led\bsp_led.h"
 #include "lcd\bsp_lcd.h"
 #include "usart\bsp_usart.h"
+#include "adc/bsp_adc.h"
+#include "pwm/bsp_pwm.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -17,6 +19,7 @@ static volatile uint16_t s_tail = 0u;
 static char s_line[CMD_LINE_SIZE];
 static uint16_t s_line_len = 0u;
 static uint8_t s_led_state = 0u;
+static uint8_t s_pwm_duty = 0u;
 
 static void cmd_send(const char *text)
 {
@@ -112,14 +115,31 @@ static void cmd_parse(char *line)
 
     if (strcmp(line, "ADC?") == 0)
     {
-        cmd_send("ERR UNSUPPORTED ADC\n");
+        cmd_sendf("OK ADC %u\n", (unsigned int)getADC1());
         return;
     }
 
-    if (strncmp(line, "PWM ", 4) == 0)
+    if (strcmp(line, "PWM?") == 0)
     {
-        cmd_send("ERR UNSUPPORTED PWM\n");
+        cmd_sendf("OK PWM 1 %u\n", (unsigned int)s_pwm_duty);
         return;
+    }
+
+    {
+        int ch;
+        int duty;
+        if (sscanf(line, "PWM %d %d", &ch, &duty) == 2)
+        {
+            if (ch != 1 || duty < 0 || duty > 100)
+            {
+                cmd_send("ERR PWM_ARG\n");
+                return;
+            }
+            PWM_SetDuty((uint8_t)duty);
+            s_pwm_duty = (uint8_t)duty;
+            cmd_sendf("OK PWM %d %d\n", ch, duty);
+            return;
+        }
     }
 
     cmd_send("ERR UNKNOWN\n");

@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "board": "STM32G431RBT6",
   "toolchain": "Keil MDK V5 / ARMCC 5.06",
   "uart": {
@@ -10,12 +10,12 @@
   "firmwares": [
     {
       "id": "command_firmware",
-      "name": "命令协议固件（PING/LED/LCD/LCDCLR）",
+      "name": "命令协议固件（PING/LED/LCD/ADC/PWM）",
       "bin": "command_firmware.hex",
-      "sha256": "782335e7119029e61077abe0c0dec167b948660417a201ce43c33823b7e48058",
+      "sha256": "6fac15ef7e0a43d87371dca6452b0bcf049a4b71362aa4546a52900ce97e7b8c",
       "flash_addr": "0x08000000",
       "status": "ready",
-      "notes": "M1 已验证：PING/LED/LCD/LCDCLR；ADC/PWM 返回 UNSUPPORTED，待 M1b"
+      "notes": "M1a/M1b 已验证：PING/LED/LEDALL/LCD/LCDCLR/ADC/PWM；含启动 LED 诊断标记（4 颗），M6 前移除"
     }
   ]
 }

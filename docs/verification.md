@@ -26,7 +26,20 @@
 | `LEDALL FF` / `LEDALL 00` | 持久串口会话，停留 3 秒 | 全亮/全灭正确 |
 | `LCDCLR` + `LCD 1 Hello` | 持久串口会话 | `OK LCDCLR` / `OK LCD`；LCD 清屏后仅第 1 行 `Hello` |
 | `BAD` | 持久串口会话 | `ERR UNKNOWN` |
-| `ADC?` | 持久串口会话 | `ERR UNSUPPORTED ADC`（M1b 待实现） |
+| `ADC?`（M1a） | 持久串口会话 | `ERR UNSUPPORTED ADC`（M1b 已补齐） |
+
+### M1b ADC/PWM（2026-11-18）
+
+| 项 | 命令/操作 | 结果 |
+|---|---|---|
+| Keil 编译 | `UV4.exe -b ...` | **0 error / 0 warning** |
+| 固件烧录 | `pyocd flash ...` | 擦 32 页/写 32 页/4.38 kB/s |
+| 启动诊断 | LED 进度标记 | 4 颗 LED 全亮，初始化全部完成 |
+| `ADC?` | 持久串口会话 | `OK ADC 1759`（12 位原始值） |
+| `PWM 1 0/50/100` | 持久串口会话 | `OK PWM 1 0/50/100` |
+| `PWM?` | 持久串口会话 | `OK PWM 1 0/50/100`，回读一致 |
+| PWM 物理波形 | 万用表/示波器测 PA2 | **待 HIL 复测**（0%≈0V、50%≈1.65V、100%≈3.3V） |
+| ADC 电位器变化 | 转动 PB12 电位器后复测 | **待 HIL 复测** |
 
 ### 已知现象
 
@@ -37,6 +50,7 @@
 sudo sh -c 'echo 0 > /sys/bus/usb/devices/1-1.1/authorized; sleep 1; echo 1 > /sys/bus/usb/devices/1-1.1/authorized'
 ```
 
+- 软件重新枚举后仍可能读到空 ACK；**物理拔插 USB 一次**最可靠（M1b 即通过物理拔插恢复）。
 - 某些重新枚举后立即读取会得到空 ACK；以物理现象（LED/LCD）为准，并保持会话常开。
 - 板载 VCP 不支持 115200；`stty -F /dev/ttyACM0 115200` 会阻塞。
 
@@ -44,7 +58,7 @@ sudo sh -c 'echo 0 > /sys/bus/usb/devices/1-1.1/authorized; sleep 1; echo 1 > /s
 
 | 里程碑 | 项 | 状态 |
 |---|---|---|
-| M1b | ADC/PWM 命令 | 未实现 |
+| M1b | ADC/PWM 命令 | **已验证（串口）**；PWM 物理波形/电位器变化待 HIL |
 | M2 | FastAPI 持久串口服务、`/api/device` | 未开始 |
 | M3 | llama.cpp + Qwen2.5-0.5B/1.5B benchmark | 未开始 |
 | M4 | 前端聊天 UI | 未开始 |

@@ -431,6 +431,16 @@
               <FileType>1</FileType>
               <FilePath>..\Src\bsp\command\bsp_command.c</FilePath>
             </File>
+            <File>
+              <FileName>bsp_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\bsp\adc\bsp_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_pwm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\bsp\pwm\bsp_pwm.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -505,6 +515,26 @@
               <FileName>stm32g4xx_hal_uart_ex.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\STM32G4xx_HAL_Driver\Src\stm32g4xx_hal_uart_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32g4xx_hal_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32G4xx_HAL_Driver\Src\stm32g4xx_hal_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32g4xx_hal_adc_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32G4xx_HAL_Driver\Src\stm32g4xx_hal_adc_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32g4xx_hal_tim.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32G4xx_HAL_Driver\Src\stm32g4xx_hal_tim.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32g4xx_hal_tim_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32G4xx_HAL_Driver\Src\stm32g4xx_hal_tim_ex.c</FilePath>
             </File>
             <File>
               <FileName>stm32g4xx_hal_uart.c</FileName>
