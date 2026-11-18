@@ -1,0 +1,63 @@
+# AI 技能与本地工具配置（不上传）
+.agents/
+.zcode/
+
+# 课程指导书、个人作业（不上传）
+*.doc
+personal/
+homework/
+作业/
+
+# 环境与密钥
+.env
+.env.*
+!.env.example
+keys/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / 前端构建产物
+node_modules/
+dist/
+.vite/
+
+# 模型与大数据
+*.gguf
+*.bin
+models/
+
+# Keil / MDK 构建产物
+firmware/MDK-ARM/**/Objects/
+firmware/MDK-ARM/**/Listings/
+firmware/MDK-ARM/**/*.o
+firmware/MDK-ARM/**/*.d
+firmware/MDK-ARM/**/*.crf
+firmware/MDK-ARM/**/*.axf
+firmware/MDK-ARM/**/*.map
+firmware/MDK-ARM/**/*.lst
+firmware/MDK-ARM/**/*.htm
+firmware/MDK-ARM/**/*.lnp
+firmware/MDK-ARM/**/*.dep
+firmware/MDK-ARM/**/*.iex
+firmware/MDK-ARM/**/*.uvguix.*
+firmware/MDK-ARM/**/*.bak
+firmware/MDK-ARM/HAL_01_LED_TEST/
+firmware/MDK-ARM/**/*.hex
+
+# 保留 release 固件
+!firmware/release/*.hex
+
+# 临时文件与日志
+.tmp/
+tmp/
+*.log
+.tmp_*.py
+Thumbs.db
+.DS_Store
