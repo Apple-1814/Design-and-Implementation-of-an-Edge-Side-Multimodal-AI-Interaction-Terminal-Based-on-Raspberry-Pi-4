@@ -5,7 +5,7 @@
 
 ## 当前阶段
 
-实测评估完成；CMSIS-DAP 烧录、9600 UART、**M1a/M1b 命令协议（PING/LED/LCD/LCDCLR/ADC/PWM）** 均已验证（串口）。下一步 M2（FastAPI 后端）。
+实测评估完成；CMSIS-DAP 烧录、9600 UART、**M1a/M1b 命令协议、M2 设备接口、M4 基础前端** 均已验证；自然语言硬件路由已通。M3 llama.cpp 构建中（约 60%），模型已下载。
 
 ## 已完成
 
@@ -29,24 +29,31 @@
 - 输出 `计划书.md`（实测修正版）。
 - **M1a 命令协议完成**：Keil 0 error / 0 warning；烧录 26 页；`PING`→`OK PONG`、`LED 1 1/0`、`LEDALL FF/00`、`LCDCLR`+`LCD 1 Hello`、`BAD`→`ERR UNKNOWN` 均通过；LED 亮/灭、全亮/全灭、LCD 清屏后仅显示 `Hello` 物理验证通过。
 - 修复主循环移除 `Key_Proc()`/`LCD_Proc()`，避免原 `i num` 覆盖 LCD；固件归档 `firmware/release/command_firmware.hex`，sha256 `782335e7119029e61077abe0c0dec167b948660417a201ce43c33823b7e48058`。
+- **M2 后端完成**：FastAPI + pyserial 持久句柄；`/api/device/status|ping|led|lcd|lcd/clear|adc|pwm` 全部通过；静态 `/`、`/app.js`、`/style.css` 200。
+- **M4 基础前端完成**：`web/index.html` + `style.css` + `app.js`，流式聊天、会话列表、设备面板、图片占位；待浏览器视觉验收。
+- **自然语言硬件路由**：`/api/chat` 先走中文规则路由，`让 LED1 亮起来`、`LCD 显示 Hello`、`读取 ADC`、`PWM 50` 均执行并返回 ACK；未命中再交给 LLM。
+- **M3 进行中**：ModelScope Qwen2.5-0.5B Q4_K_M 已下载（469MB）；llama.cpp master 源码构建中（CMake 3.16 UI 兼容问题已绕过）。
 
 ## 待办
 
 | # | 事项 | 影响 | 下一步 |
 |---|---|---|---|
-| 1 | M2：Pi 后端 | 串口/HTTP 联调 | FastAPI + 持久串口 + `/api/device` |
-| 2 | 组内分工 | 任务拆分与报告分工 | 用户确认 8–10 人角色 |
-| 3 | 指导老师要求 | 是否强制 Proteus/焊接/PCB | 用户确认 |
-| 4 | 前端方案 | Vue 构建版 vs 无构建 HTML | 推荐 PC 构建 Vue，Pi 静态托管 |
-| 5 | 模型组合 | 0.5B 路由 + 1.5B 对话 vs 只用 0.5B | benchmark 后定 |
-| 6 | 摄像头 | VLM 拍照问答 | 当前无摄像头；先做上传图片，摄像头可选 |
+| 1 | M3：llama-server 构建/基准 | LLM 对话未接 | 构建完成后启动 llama-server，测 tok/s/首字延迟 |
+| 2 | M5：VLM 图片问答 | P1 功能 | SmolVLM-500M + mmproj；无摄像头，上传图片 |
+| 3 | M6：整机 30 分钟稳定性 | 交付验收 | LLM 对话 + 硬件命令连续测试 |
+| 4 | M7：报告/图表/演示/PPT | 交付 | 九节报告、性能数据、截图 |
+| 5 | 组内分工 | 报告分工 | 用户确认 8–10 人角色 |
+| 6 | 指导老师要求 | 仿真/焊接/PCB | 用户确认 |
+| 7 | 摄像头 | 可选扩展 | 当前无摄像头 |
 
 ## 下一步（按顺序）
 
-1. 提交并推送 M1b（ADC/PWM）改动。
-2. M2：Pi venv + FastAPI + 持久串口 + `/api/device`。
-3. M3：下载 Qwen2.5-0.5B/1.5B，llama.cpp benchmark。
-4. M4：前端骨架（PC 构建 Vue，Pi 静态托管）。
+1. 提交并推送 M2/M4/规则路由改动。
+2. 等待 llama.cpp 构建完成，启动 llama-server，测 `/v1/chat/completions` 与 tok/s。
+3. 把 `/api/chat` 从规则路由扩展到 LLM 流式对话（规则优先，未命中走模型）。
+4. M5：SmolVLM 上传图片问答（如时间允许）。
+5. M6：整机联调 30 分钟 + 演示脚本。
+6. M7：报告、图表、PPT、交付。
 
 ## 重要决策
 
@@ -98,5 +105,8 @@
 | 2026-11-18 | M1 命令 | 持久串口会话 | `OK PONG`、`OK LED 1 1/0`、`OK LEDALL`、`OK LCD`、`OK LCDCLR`、`ERR UNKNOWN` |
 | 2026-11-18 | M1 物理现象 | 人工观察 | LED1 亮/灭、全亮/全灭正确；LCD 清屏后仅 `Hello` |
 | 2026-11-18 | M1b ADC/PWM | 持久串口会话 | `OK ADC 1759`；`OK PWM 1 0/50/100`；`PWM?` 回读一致 |
+| 2026-11-18 | M2 后端 | uvicorn + curl | `/api/device/*` 全部通过；静态 `/`、`app.js` 200 |
+| 2026-11-18 | 自然语言硬件 | `POST /api/chat` | `让 LED1 亮起来`→`OK LED 1 1`；LCD/ADC/PWM 均 OK |
+| 2026-11-18 | M4 前端 | `GET /` | 返回 `index.html`；视觉验收待做 |
 | — | PWM 物理波形 | PA2 万用表/示波器 | 待 HIL（0/50/100% ≈ 0/1.65/3.3V） |
-| — | LLM benchmark | llama.cpp + 0.5B/1.5B | 未执行 |
+| — | LLM benchmark | llama.cpp + 0.5B/1.5B | 构建中 |
