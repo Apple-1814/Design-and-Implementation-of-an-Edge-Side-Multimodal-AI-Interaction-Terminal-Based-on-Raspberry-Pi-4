@@ -60,17 +60,40 @@ firmware/MDK-ARM/HAL_01_LED_TEST/HAL_01_LED_TEST.hex
 
 ```bash
 pyocd flash --pack ~/Keil.STM32G4xx_DFP.1.6.0.pack \
-  -t STM32G431RBTx -f 100k firmware/MDK-ARM/HAL_01_LED_TEST/HAL_01_LED_TEST.hex
+  -t STM32G431RBTx -f 100k firmware/release/command_firmware.hex
 pyocd reset --pack ~/Keil.STM32G4xx_DFP.1.6.0.pack -t STM32G431RBTx
 ```
 
 ### 串口
 
 ```bash
-# 板载 CMSIS-DAP VCP
-stty -F /dev/ttyACM0 9600
+# 板载 CMSIS-DAP VCP 默认 9600；不要用 stty 改 115200（会阻塞）
 cat /dev/ttyACM0
 ```
+
+### 树莓派完整启动
+
+```bash
+# 1) Python 依赖（见 pi/README.md）
+cd pi
+~/.local/bin/virtualenv .venv 2>/dev/null || true
+. .venv/bin/activate
+pip install -r requirements.txt
+
+# 2) 模型与 llama.cpp（见 docs/交付说明.md / docs/llama_cpp_pi_build.md）
+#    模型放到 ~/ai-terminal/models，llama-server 构建到 ~/ai-terminal/llama.cpp
+
+# 3) 一键启动 LLM(8080) + VLM(8081) + FastAPI(8000)
+ROOT=$HOME/ai-terminal bash scripts/start_all.sh
+```
+
+浏览器访问 `http://<树莓派IP>:8000/`。
+
+### 报告与 PPT
+
+- [课程设计报告.docx](paper/课程设计报告.docx)
+- [答辩PPT.pptx](paper/答辩PPT.pptx)
+- [交付说明](docs/交付说明.md) · [验证记录](docs/verification.md) · [UART 协议](docs/protocol.md)
 
 ## 5. 验证方式
 

@@ -4,12 +4,15 @@
 
 | 脚本 | 功能 |
 |---|---|
-| `flash.py` | 读取 `firmware/release/manifest.json`，校验 sha256，pyOCD 烧录 + 复位 + 重新枚举 USB |
+| `flash.py` | 读取 `firmware/release/manifest.json`，校验 sha256，pyOCD 烧录 + 复位 |
 | `uart_test.py` | 常开 `/dev/ttyACM0`，逐条发送协议命令并打印 ACK |
-| `deploy_pi.sh` | 安装 Python 依赖、部署 FastAPI、配置 systemd（M2） |
+| `start_all.sh` | 后台启动 LLM(8080) + VLM(8081) + FastAPI(8000) |
 | `run_llama.sh` | 启动 Qwen2.5-0.5B `llama-server`（127.0.0.1:8080） |
 | `run_vlm.sh` | 启动 SmolVLM-500M 多模态 `llama-server`（127.0.0.1:8081） |
 | `bench_llm.py` | 调用 `/v1/chat/completions`，输出耗时/tok/s/内容 |
+| `stability_test.py` | 30 分钟稳定性测试（硬件/LLM/VLM/内存/温度） |
+| `make_figures.py` / `make_ui_mock.py` | 生成报告插图与界面布局示意 |
+| `build_report_docx.py` / `build_ppt.py` | 生成 Word 报告与答辩 PPT |
 
 ## 模型运行
 
@@ -23,6 +26,22 @@ bash scripts/run_vlm.sh
 # 基准
 python3 scripts/bench_llm.py --url http://127.0.0.1:8080 \
   --prompt "用三句话介绍树莓派" --max-tokens 128
+```
+
+## 设备、稳定性与一键启动
+
+```bash
+# 白名单烧录（校验 sha256）
+python3 scripts/flash.py --firmware command_firmware --yes
+
+# 串口命令逐条测试（持久会话）
+python3 scripts/uart_test.py --port /dev/ttyACM0 --baud 9600
+
+# 30 分钟稳定性（硬件 + LLM + VLM + 内存/温度）
+python3 scripts/stability_test.py --duration 1800
+
+# 一键启动 LLM + VLM + FastAPI
+ROOT=$HOME/ai-terminal bash scripts/start_all.sh
 ```
 
 ## 当前手动命令
