@@ -26,11 +26,11 @@ STM32G431（蓝桥杯 CT117E-M4）
 | M0 环境与链路 | ✅ Pi 4B 8GB、Ubuntu 20.04、CMSIS-DAP 烧录、9600 UART 双向、原固件备份 |
 | M1 固件命令协议 | ✅ M1a/M1b 已验证：PING/LED/LCD/LCDCLR/ADC/PWM（串口）；PWM 物理波形待 HIL |
 | M2 Pi 后端 | ✅ 已实现：`/api/device/*` + 持久串口 |
-| M3 LLM 部署 | 🚧 llama.cpp 构建中；Qwen2.5-0.5B 模型已下载 |
+| M3 LLM 部署 | ✅ Qwen2.5-0.5B，7.26 tok/s |
 | M4 前端 | ✅ 基础版：聊天 + 设备面板；视觉验收待做 |
-| M5 VLM | ⏳ 待开始 |
-| M6 整机联调 | 🚧 自然语言硬件已通；LLM 对话待接 |
-| M7 报告与交付 | ⏳ 待开始 |
+| M5 VLM | ✅ 基础版：SmolVLM-500M，单图 34s |
+| M6 整机联调 | 🚧 自然语言/LLM/VLM 已通；30 分钟稳定性待做 |
+| M7 报告与交付 | 🚧 报告初稿已写；图表/Word/PPT 待做 |
 
 ## 3. 目录
 

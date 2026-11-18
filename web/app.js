@@ -6,6 +6,7 @@ const state = {
   currentId: null,
   streaming: false,
   controller: null,
+  pendingImage: null,
 };
 
 const messagesEl = $("#messages");
@@ -125,6 +126,7 @@ function renderMessages() {
       <h1>本地多模态 AI 终端</h1>
       <p>树莓派 4B · Qwen2.5-0.5B · STM32G431</p>
       <p>试试：让 LED1 亮起来 / 在 LCD 上显示 Hello / 读取 ADC</p>
+      <p>也可以点击左下角图片按钮，上传图片问答。</p>
     `;
     messagesEl.appendChild(empty);
     return;
@@ -160,9 +162,63 @@ async function deviceFetch(path, options) {
   return data;
 }
 
+function clearPendingImage() {
+  state.pendingImage = null;
+  const preview = $("#imagePreview");
+  const img = $("#imagePreviewImg");
+  if (preview) preview.hidden = true;
+  if (img) img.src = "";
+}
+
+async function sendVision() {
+  const dataUrl = state.pendingImage;
+  if (!dataUrl || state.streaming) return;
+
+  const text = inputEl.value.trim();
+  const prompt = text || "请描述这张图片";
+  addMessage("user", prompt, dataUrl);
+  clearPendingImage();
+  inputEl.value = "";
+  autoResize();
+
+  const session = currentSession();
+  const assistant = { role: "assistant", content: "" };
+  session.messages.push(assistant);
+  const node = messageNode(assistant);
+  messagesEl.appendChild(node);
+  const bubble = node.querySelector(".bubble");
+  bubble.classList.add("typing");
+
+  state.streaming = true;
+  sendBtn.disabled = false;
+
+  try {
+    const blob = await (await fetch(dataUrl)).blob();
+    const form = new FormData();
+    form.append("file", blob, "upload.jpg");
+    form.append("prompt", prompt);
+    const resp = await fetch("/api/vision", { method: "POST", body: form });
+    const data = await resp.json().catch(() => ({}));
+    assistant.content = data.response || data.detail || "VLM 无响应";
+  } catch (err) {
+    assistant.content = `图片请求失败：${err.message}`;
+  } finally {
+    bubble.classList.remove("typing");
+    bubble.innerHTML = renderMarkdown(assistant.content);
+    state.streaming = false;
+    sendBtn.disabled = false;
+    saveSessions();
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+}
+
 async function sendMessage() {
   if (state.streaming) {
     state.controller?.abort();
+    return;
+  }
+  if (state.pendingImage) {
+    await sendVision();
     return;
   }
   const text = inputEl.value.trim();
@@ -341,12 +397,15 @@ $("#imageInput").addEventListener("change", (e) => {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
-    addMessage("user", "（已选择图片，VLM 图片问答将在 M5 接入）", reader.result);
+    state.pendingImage = reader.result;
+    $("#imagePreviewImg").src = reader.result;
+    $("#imagePreview").hidden = false;
     inputEl.focus();
   };
   reader.readAsDataURL(file);
   e.target.value = "";
 });
+$("#imageClear").addEventListener("click", clearPendingImage);
 
 loadSessions();
 refreshStatus();

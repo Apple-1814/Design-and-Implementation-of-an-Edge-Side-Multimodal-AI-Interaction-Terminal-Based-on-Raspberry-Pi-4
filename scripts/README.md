@@ -7,6 +7,23 @@
 | `flash.py` | 读取 `firmware/release/manifest.json`，校验 sha256，pyOCD 烧录 + 复位 + 重新枚举 USB |
 | `uart_test.py` | 常开 `/dev/ttyACM0`，逐条发送协议命令并打印 ACK |
 | `deploy_pi.sh` | 安装 Python 依赖、部署 FastAPI、配置 systemd（M2） |
+| `run_llama.sh` | 启动 Qwen2.5-0.5B `llama-server`（127.0.0.1:8080） |
+| `run_vlm.sh` | 启动 SmolVLM-500M 多模态 `llama-server`（127.0.0.1:8081） |
+| `bench_llm.py` | 调用 `/v1/chat/completions`，输出耗时/tok/s/内容 |
+
+## 模型运行
+
+```bash
+# LLM（8080）
+bash scripts/run_llama.sh
+
+# VLM（8081，需 llama-server 支持 mtmd）
+bash scripts/run_vlm.sh
+
+# 基准
+python3 scripts/bench_llm.py --url http://127.0.0.1:8080 \
+  --prompt "用三句话介绍树莓派" --max-tokens 128
+```
 
 ## 当前手动命令
 

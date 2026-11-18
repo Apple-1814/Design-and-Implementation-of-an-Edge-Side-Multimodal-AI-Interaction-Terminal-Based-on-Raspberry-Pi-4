@@ -3,12 +3,13 @@
 M2 scope: persistent serial service and device endpoints.
 LLM/VLM endpoints are added in M3/M5.
 """
+import base64
 import json
 from pathlib import Path
 from typing import List
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -20,6 +21,7 @@ from .tool_router import route_tool
 
 APP_VERSION = "0.2.0"
 LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
+VLM_URL = "http://127.0.0.1:8081/v1/chat/completions"
 
 app = FastAPI(title="Edge AI Terminal", version=APP_VERSION)
 app.add_middleware(
@@ -176,6 +178,52 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             ) + "\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/api/vision")
+async def vision(
+    file: UploadFile = File(...),
+    prompt: str = Form("请描述这张图片")
+) -> dict:
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="empty image")
+    if len(raw) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="image too large (max 8MB)")
+
+    mime = file.content_type or "image/jpeg"
+    b64 = base64.b64encode(raw).decode("ascii")
+    payload = {
+        "model": "smolvlm",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime};base64,{b64}"},
+                    },
+                ],
+            }
+        ],
+        "max_tokens": 128,
+        "temperature": 0.2,
+        "stream": False,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=180) as client:
+            resp = await client.post(VLM_URL, json=payload)
+            if resp.status_code != 200:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"VLM server {resp.status_code}: {resp.text[:200]}",
+                )
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            return {"ok": True, "response": content}
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail=f"VLM request failed: {exc}") from exc
 
 
 @app.get("/api/scripts")

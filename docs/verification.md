@@ -57,15 +57,17 @@
 
 备注：串口在后台线程打开，服务启动可能延迟约 30 秒；启动完成后状态 `open: true`。
 
-### M3 模型部署（进行中）
+### M3 模型部署（已验证）
 
 | 项 | 操作 | 结果 |
 |---|---|---|
 | 模型下载 | ModelScope `Qwen2.5-0.5B-Instruct-GGUF` q4_k_m | 469MB，已完成 |
 | llama.cpp 源码 | GitHub master tarball（38MB） | 已解压 |
-| CMake 兼容 | Pi CMake 3.16.3；UI 脚本要求 ≥3.18 | `LLAMA_BUILD_UI=OFF` + 注释 UI 依赖 + UI CMake 提前返回 |
-| llama-server 构建 | `cmake --build ... --target llama-server -j4` | 进行中（约 60%） |
-| 基准测试 | `llama-server` + `/v1/chat/completions` | 未开始 |
+| CMake 兼容 | Pi CMake 3.16.3；UI 脚本要求 ≥3.18 | `LLAMA_BUILD_UI=OFF` + `ui.h` 空实现 + 移除 `llama-ui` 链接 |
+| llama-server 构建 | `cmake --build ... --target llama-server -j4` | **成功** |
+| 模型加载 | `llama-server -m qwen... --port 8080` | `model loaded`，`/health` OK |
+| 推理基准 | “用三句话介绍树莓派”，max_tokens=128 | 38 completion tokens / 7.04s；**7.26 tok/s**；prompt 19.09 tok/s |
+| FastAPI 流式 | `POST /api/chat` | SSE 逐 token 返回，中文正常 |
 
 ### M4 前端（基础版）
 
@@ -73,8 +75,19 @@
 |---|---|---|
 | 首页 | `GET /` | 返回 `index.html` |
 | 静态资源 | `GET /app.js`、`/style.css` | 200 |
-| 功能 | 流式聊天、会话列表、设备面板、图片占位 | 已实现 |
+| 功能 | 流式聊天、会话列表、设备面板、图片上传 | 已实现 |
 | 视觉验收 | 浏览器截图 | 待用户/浏览器验收 |
+
+### M5 VLM（基础验证）
+
+| 项 | 操作 | 结果 |
+|---|---|---|
+| 模型下载 | SmolVLM-500M-Instruct Q8 + mmproj Q8 | 417MB + 104MB |
+| 服务启动 | `llama-server --mmproj ... --port 8081` | `loaded multimodal model`，`/health` OK |
+| 测试图 | 320×240 白底红圆 + `HELLO` | — |
+| 直接推理 | “请描述这张图片”，max_tokens=64 | **34.11s**，返回 ` HELLO` |
+| FastAPI | `POST /api/vision` | `{"ok": true, "response": " HELLO"}` |
+| 前端 | 图片上传 → `/api/vision` | 已接入，待浏览器验收 |
 
 ### 已知现象
 
@@ -95,8 +108,8 @@ sudo sh -c 'echo 0 > /sys/bus/usb/devices/1-1.1/authorized; sleep 1; echo 1 > /s
 |---|---|---|
 | M1b | ADC/PWM 命令 | **已验证（串口）**；PWM 物理波形/电位器变化待 HIL |
 | M2 | FastAPI 持久串口服务、`/api/device` | **已验证** |
-| M3 | llama.cpp + Qwen2.5-0.5B/1.5B benchmark | 构建中（约 60%）；模型已下载 |
+| M3 | llama.cpp + Qwen2.5-0.5B/1.5B benchmark | **已验证**：Qwen2.5-0.5B 7.26 tok/s |
 | M4 | 前端聊天 UI | 基础版已验证；视觉验收待做 |
-| M5 | SmolVLM 上传图片问答 | 未开始 |
-| M6 | 整机联调 30 分钟稳定性 | 部分验证（自然语言硬件已通）；LLM 对话待接 |
-| M7 | 报告、图表、演示、PPT | 未开始 |
+| M5 | SmolVLM 上传图片问答 | **基础验证**：单图 34.11s，返回 `HELLO` |
+| M6 | 整机联调 30 分钟稳定性 | 部分验证（自然语言硬件 + LLM 对话 + VLM 单图）；30 分钟稳定性待做 |
+| M7 | 报告、图表、演示、PPT | 报告初稿已写；图表/PPT/Word 待做 |
