@@ -89,6 +89,16 @@
 | FastAPI | `POST /api/vision` | `{"ok": true, "response": " HELLO"}` |
 | 前端 | 图片上传 → `/api/vision` | 已接入，待浏览器验收 |
 
+### M7 报告与交付
+
+| 项 | 产物 | 结果 |
+|---|---|---|
+| Word 报告 | `paper/课程设计报告.docx` | 477KB，封面 + 7 表 + 9 图 |
+| 答辩 PPT | `paper/答辩PPT.pptx` | 10 页 |
+| 插图 | `paper/figures/*.png` | 系统框图/电源树/接线/3 张流程/UART/PWM/UI 示意 |
+| 30 分钟稳定性 | `scripts/stability_test.py` | 进行中（硬件/LLM 已连续通过） |
+| 最终交付包 | 源码、固件、报告、PPT、复现说明 | 待最终提交 |
+
 ### 已知现象
 
 - 板载 VCP 只接受**单次持久会话**；频繁 open/close 会导致写阻塞（`rc=124`）。
@@ -112,4 +122,4 @@ sudo sh -c 'echo 0 > /sys/bus/usb/devices/1-1.1/authorized; sleep 1; echo 1 > /s
 | M4 | 前端聊天 UI | 基础版已验证；视觉验收待做 |
 | M5 | SmolVLM 上传图片问答 | **基础验证**：单图 34.11s，返回 `HELLO` |
 | M6 | 整机联调 30 分钟稳定性 | 部分验证（自然语言硬件 + LLM 对话 + VLM 单图）；30 分钟稳定性待做 |
-| M7 | 报告、图表、演示、PPT | 报告初稿已写；图表/PPT/Word 待做 |
+| M7 | 报告、图表、演示、PPT | **Word/PPT/图表已生成**；稳定性最终数据待补 |

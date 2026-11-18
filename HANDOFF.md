@@ -5,7 +5,7 @@
 
 ## 当前阶段
 
-实测评估完成；**M1–M5 已验证**：固件命令、M2 后端、M3 Qwen2.5-0.5B（7.26 tok/s）、M4 基础前端、M5 SmolVLM（34s/图）；自然语言硬件路由已通。下一步 M6 稳定性与 M7 交付。
+实测评估完成；**M1–M5 已验证**：固件命令、M2 后端、M3 Qwen2.5-0.5B（7.26 tok/s）、M4 基础前端、M5 SmolVLM（34s/图）；自然语言硬件路由已通。**M6 30 分钟稳定性测试运行中；M7 Word/PPT/图表已生成。**
 
 ## 已完成
 
@@ -34,13 +34,14 @@
 - **自然语言硬件路由**：`/api/chat` 先走中文规则路由，`让 LED1 亮起来`、`LCD 显示 Hello`、`读取 ADC`、`PWM 50` 均执行并返回 ACK；未命中再交给 LLM。
 - **M3 完成**：ModelScope Qwen2.5-0.5B Q4_K_M（469MB）；llama.cpp master 构建成功（CMake 3.16 UI 兼容问题通过 `LLAMA_BUILD_UI=OFF` + `ui.h` 空实现 + 移除 `llama-ui` 链接绕过）；38 tokens/7.04s，**7.26 tok/s**，prompt 19.09 tok/s；`/api/chat` SSE 正常。
 - **M5 完成（基础）**：SmolVLM-500M Q8 + mmproj 加载；320×240 测试图 34.11s 返回 `HELLO`；`/api/vision` 可用，前端图片上传已接入。
+- **M7 完成（初版）**：`paper/课程设计报告.docx`（封面 + 7 表 + 9 图）、`paper/答辩PPT.pptx`（10 页）、`paper/figures/*.png`（系统框图/电源树/接线/流程图/UART/PWM/UI 示意）；脚本 `make_figures.py`、`make_ui_mock.py`、`build_report_docx.py`、`build_ppt.py`。
 
 ## 待办
 
 | # | 事项 | 影响 | 下一步 |
 |---|---|---|---|
-| 1 | M6：整机 30 分钟稳定性 | 交付验收 | LLM + VLM + 硬件命令连续测试 |
-| 2 | M7：报告 Word/图表/PPT/演示 | 交付 | 报告初稿已有，补图与格式 |
+| 1 | M6：30 分钟稳定性收尾 | 交付数据 | 测试结束后读取 `stability_summary.json`，补报告/HANDOFF |
+| 2 | 最终提交/打 tag | 交付 | 更新文档后 commit/push；可选 tag `v0.5.0` |
 | 3 | PWM 物理波形/ADC 电位器变化 | HIL 证据 | 万用表/示波器复测 |
 | 4 | 组内分工 | 报告分工 | 用户确认 8–10 人角色 |
 | 5 | 指导老师要求 | 仿真/焊接/PCB | 用户确认 |
@@ -48,10 +49,10 @@
 
 ## 下一步（按顺序）
 
-1. 提交并推送 M3/M5/报告初稿。
-2. M6：30 分钟稳定性脚本（LLM 对话 + 硬件命令 + VLM 单图），记录内存/温度。
-3. M7：生成系统框图/流程图/Word 报告/答辩 PPT。
-4. 最终交付包：源码、固件、报告、演示视频/照片、复现说明。
+1. 等待 30 分钟稳定性测试结束，读取 `stability_summary.json`，补报告/HANDOFF。
+2. 更新 Word/PPT 中的稳定性数据（如需要）。
+3. 最终 commit/push，打 tag `v0.5.0`。
+4. 组员补拍实物照片/替换 UI 示意图；打印报告、准备答辩。
 
 ## 重要决策
 
@@ -108,4 +109,6 @@
 | 2026-11-18 | M4 前端 | `GET /` | 返回 `index.html`；视觉验收待做 |
 | 2026-11-18 | M3 LLM | `llama-server` + `/api/chat` | 38 tokens/7.04s；**7.26 tok/s**；中文正常 |
 | 2026-11-18 | M5 VLM | SmolVLM-500M + `/api/vision` | **34.11s**；返回 `HELLO` |
+| 2026-11-18 | M7 Word | `python scripts/build_report_docx.py` | 477KB；7 表；9 图 |
+| 2026-11-18 | M7 PPT | `python scripts/build_ppt.py` | 10 页 |
 | — | PWM 物理波形 | PA2 万用表/示波器 | 待 HIL（0/50/100% ≈ 0/1.65/3.3V） |
