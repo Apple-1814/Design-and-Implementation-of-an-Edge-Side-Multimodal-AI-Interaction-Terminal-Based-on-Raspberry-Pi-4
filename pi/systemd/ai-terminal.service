@@ -1,0 +1,17 @@
+[Unit]
+Description=Edge AI Terminal - FastAPI
+After=network-online.target llama.service vlm.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=apple
+WorkingDirectory=/home/apple/ai-terminal/pi
+Environment=DEMO_IP=192.168.49.50
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 60); do curl -sf http://127.0.0.1:8080/health >/dev/null && curl -sf http://127.0.0.1:8081/health >/dev/null && exit 0; sleep 1; done; exit 0'
+ExecStart=/home/apple/ai-terminal/pi/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -198,6 +198,7 @@ def main():
         "ADC 读回 1759；PWM 0/50/100% 回读一致",
         "自然语言：「让 LED1 亮起来」「LCD 显示 Hello」「读取 ADC」「PWM 50」均执行",
         "LLM 7.26 tok/s；VLM 单图 34.11 s；30 分钟稳定性 933 次检查 / 0 失败（最高 47.2°C）",
+        "systemd 开机自启：上电后约 22 秒 API 上线（LCD 显示 IP/READY）",
     ], 18)
 
     # 9 shortcomings

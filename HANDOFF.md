@@ -5,7 +5,7 @@
 
 ## 当前阶段
 
-实测评估完成；**M1–M7 全部验证**：固件命令、M2 后端、M3 Qwen2.5-0.5B（7.26 tok/s）、M4 前端、M5 SmolVLM（34s/图）、M6 30 分钟稳定性（**933 次检查 / 0 失败**，最高 47.2°C）、M7 Word/PPT/图表。
+实测评估完成；**M1–M7 全部验证**：固件命令、M2 后端、M3 Qwen2.5-0.5B（7.26 tok/s）、M4 前端、M5 SmolVLM（34s/图）、M6 30 分钟稳定性（**933 次检查 / 0 失败**，最高 47.2°C）、M7 Word/PPT/图表；**开机自启已验证（重启 22s API 上线）**。
 
 ## 已完成
 
@@ -36,12 +36,13 @@
 - **M5 完成（基础）**：SmolVLM-500M Q8 + mmproj 加载；320×240 测试图 34.11s 返回 `HELLO`；`/api/vision` 可用，前端图片上传已接入。
 - **M7 完成（初版）**：`paper/课程设计报告.docx`（封面 + 7 表 + 9 图）、`paper/答辩PPT.pptx`（10 页）、`paper/figures/*.png`（系统框图/电源树/接线/流程图/UART/PWM/UI 示意）；脚本 `make_figures.py`、`make_ui_mock.py`、`build_report_docx.py`、`build_ppt.py`。
 - **M6 稳定性通过**：1801.4s / 180 轮 / **933 次检查 / 0 失败**；最高 47.2°C；最低空闲 6251MB；VLM 2 次单图检查 OK。数据在 `paper/stability_summary.json`。
+- **开机自启完成**：`llama.service`、`vlm.service`、`ai-terminal.service` 均 enabled/active；重启验证 API **22s** 上线；eth0 固定 `192.168.49.50`；LCD 显示 IP/READY；新增 `pi/systemd/`、`scripts/install_services.sh`、`docs/课堂演示网络配置.md`。
 
 ## 待办
 
 | # | 事项 | 影响 | 下一步 |
 |---|---|---|---|
-| 1 | 最终提交 + tag `v0.5.0` | 交付 | commit/push/tag |
+| 1 | 最终提交 + tag `v0.5.1` | 交付 | commit/push/tag |
 | 2 | PWM 物理波形/ADC 电位器变化 | HIL 证据 | 万用表/示波器复测 |
 | 3 | 组内分工 | 报告分工 | 用户确认 8–10 人角色 |
 | 4 | 指导老师要求 | 仿真/焊接/PCB | 用户确认 |
@@ -50,9 +51,9 @@
 
 ## 下一步（按顺序）
 
-1. 最终 commit/push + tag `v0.5.0`（稳定性数据已回填）。
+1. 最终 commit/push + tag `v0.5.1`（含开机自启与课堂网络说明）。
 2. 组员补拍实物照片、替换 UI 示意截图、填写封面信息。
-3. 打印报告、答辩演练。
+3. 打印报告、按 `docs/课堂演示网络配置.md` 做一次课堂彩排。
 
 ## 重要决策
 
@@ -109,6 +110,7 @@
 | 2026-11-18 | M4 前端 | `GET /` | 返回 `index.html`；视觉验收待做 |
 | 2026-11-18 | M3 LLM | `llama-server` + `/api/chat` | 38 tokens/7.04s；**7.26 tok/s**；中文正常 |
 | 2026-11-18 | M5 VLM | SmolVLM-500M + `/api/vision` | **34.11s**；返回 `HELLO` |
+| 2026-11-18 | 开机自启 | `sudo reboot` + `curl /api/info` | **22s API 上线**；三个服务 enabled/active；eth0 固定 192.168.49.50 |
 | 2026-11-18 | M6 稳定性 | `scripts/stability_test.py --duration 1800` | 1801.4s / **933 次检查 / 0 失败**；最高 47.2°C；最低空闲 6251MB |
 | 2026-11-18 | M7 Word | `python scripts/build_report_docx.py` | 477KB；7 表；9 图 |
 | 2026-11-18 | M7 PPT | `python scripts/build_ppt.py` | 10 页 |

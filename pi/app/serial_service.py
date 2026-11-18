@@ -5,6 +5,7 @@ open/close the port per request. Opening is done in a background thread so a
 blocked VCP cannot block FastAPI startup. Device endpoints return 503 while
 the port is still opening; use /api/device/reconnect after a replug.
 """
+import os
 import threading
 import time
 from typing import Optional
@@ -16,6 +17,7 @@ class SerialService:
     def __init__(self, port: str = "/dev/ttyACM0", baud: int = 9600) -> None:
         self.port = port
         self.baud = baud
+        self.demo_ip = os.environ.get("DEMO_IP", "192.168.49.50")
         self._lock = threading.RLock()
         self._ser: Optional[serial.Serial] = None
         self._opening = False
@@ -32,7 +34,17 @@ class SerialService:
 
     def _open_worker(self) -> None:
         try:
-            self._open()
+            while True:
+                if self._open():
+                    # Show the fixed demo IP on the board LCD for classroom use.
+                    try:
+                        self.command("LCDCLR", wait=1.2)
+                        self.command(f"LCD 1 {self.demo_ip}", wait=0.8)
+                        self.command("LCD 2 READY", wait=0.8)
+                    except Exception:
+                        pass
+                    break
+                time.sleep(2.0)
         finally:
             with self._lock:
                 self._opening = False

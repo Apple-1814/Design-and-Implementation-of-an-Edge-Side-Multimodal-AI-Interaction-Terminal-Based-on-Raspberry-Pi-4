@@ -89,6 +89,14 @@ ROOT=$HOME/ai-terminal bash scripts/start_all.sh
 
 浏览器访问 `http://<树莓派IP>:8000/`。
 
+> **开机自启已配置**：`llama.service`、`vlm.service`、`ai-terminal.service` 均为 enabled；给 Pi 上电后约 22 秒 API 上线，LCD 显示固定 IP 与 `READY`。首次安装：
+>
+> ```bash
+> ROOT=/home/apple/ai-terminal bash scripts/install_services.sh
+> ```
+>
+> 课堂电脑/Pi 固定 IP 与手机共享网络见 [docs/课堂演示网络配置.md](docs/课堂演示网络配置.md)。
+
 ### 报告与 PPT
 
 - [课程设计报告.docx](paper/课程设计报告.docx)

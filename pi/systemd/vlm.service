@@ -1,0 +1,16 @@
+[Unit]
+Description=Edge AI Terminal - llama.cpp SmolVLM-500M
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=apple
+WorkingDirectory=/home/apple/ai-terminal/llama.cpp
+Environment=LD_LIBRARY_PATH=/home/apple/ai-terminal/llama.cpp/build/bin
+ExecStart=/home/apple/ai-terminal/llama.cpp/build/bin/llama-server -m /home/apple/ai-terminal/models/SmolVLM-500M-Instruct-Q8_0.gguf --mmproj /home/apple/ai-terminal/models/mmproj-SmolVLM-500M-Instruct-Q8_0.gguf --host 127.0.0.1 --port 8081 -t 4 -c 2048
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
