@@ -144,7 +144,7 @@ scp pi/app/knowledge.py apple@<Pi-IP>:~/ai-terminal/pi/app/
 
 - 覆盖：章节 PPT、CT117E-M4 产品手册、实训指导书、真题汇编目录、考点统计、官方模块源码、历年真题工程、本机验证固件、`docs/board_facts.md`。
 - 检索：中文 bigram + ASCII 标识符 + 同义词，BM25；`/api/knowledge/search?q=...` 可单独测试。
-- 问答策略：硬件命令规则路由 → 知识库直答（板卡/源码/课件摘录）→ 0.5B RAG 回退 → 范围提示。
+- 问答策略：硬件命令规则路由 → 知识库直答（板卡/源码/课件摘录）→ 0.5B RAG/通用回答；天气只说明无实时数据，日期用系统时间。
 - 限制：图片型真题 Word/OneNote 未 OCR；F103/STC15 旧平台内容仅作原理参考，引脚以 `docs/board_facts.md` 为准。
 - 页面左下角/顶部显示知识库片段数；每条回答下方可展开资料来源。
 

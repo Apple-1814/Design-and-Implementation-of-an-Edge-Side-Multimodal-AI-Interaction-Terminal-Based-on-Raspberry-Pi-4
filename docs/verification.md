@@ -120,10 +120,11 @@
 | 索引 | `knowledge/chunks.jsonl` + `manifest.json` | 3.5MB JSONL；sha256 见 manifest |
 | 加载 | `GET /api/knowledge/status` | loaded=true；kinds: board 19 / code 921 / ioc 138 / ppt 66 / pdf 447 / docx 3 / xlsx 14 |
 | 检索 | `GET /api/knowledge/search?q=LED怎么点亮` | 约 3ms；板卡事实卡 3.1 + 本机 `bsp_led.c` |
-| 冒烟测试 | `python scripts/test_knowledge.py` | 9 个问答 PASS + 范围外 PASS |
+| 冒烟测试 | `python scripts/test_knowledge.py` | 10 个问答 PASS + 负例 PASS |
 | 直答 | `POST /api/chat` LED/I2C/PWM/USART/LCD | **0.04s**；`mode=knowledge`；2 条来源 |
 | 课件直答 | `POST /api/chat` NVIC/输入捕获 | **0.05s**；PPT 摘录 / 代码+PPT |
-| 范围提示 | `POST /api/chat` “今天天气怎么样” | **0.03s**；`mode=scope`，不调用模型 |
+| 通用回答 | `POST /api/chat` “天气怎么样/代码是什么” | 14s/3.5s；`mode=llm`；天气不编造、代码给定义 |
+| 日期时间 | `POST /api/chat` “今天几号” | **0.03s**；`mode=time`，用树莓派系统时间 |
 | 身份路由 | `POST /api/chat` “你是谁/你好” | **0.04s**；`mode=meta/greeting`，正确介绍 Qwen2.5-0.5B 与知识库 |
 | 树莓派事实 | `POST /api/chat` “树莓派是什么” | 0.04s；板卡事实卡第 12 节，说明 Pi 与 STM32 分工 |
 | 硬件分流 | 前端“让 LED1 亮起来” | `OK LED 1 1`；随后“LED1 关”恢复 |

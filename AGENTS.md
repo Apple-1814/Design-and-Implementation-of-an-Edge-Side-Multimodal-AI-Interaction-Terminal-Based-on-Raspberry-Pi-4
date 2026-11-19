@@ -55,7 +55,7 @@
 - 构建：`python scripts/build_knowledge.py` → `knowledge/chunks.jsonl` + `manifest.json`（`knowledge/` 已 gitignore）。
 - 内容：章节 PPT、产品手册、实训指导书、真题汇编目录、考点统计、官方模块源码、历年真题工程、本机验证固件、`docs/board_facts.md`。
 - 检索：`pi/app/knowledge.py`，中文 bigram + ASCII 标识符 + 同义词，BM25；板卡事实卡/本机固件加权。
-- 问答：`/api/chat` 先硬件规则路由；再知识库直答（板卡/源码/课件摘录，毫秒级）；未命中技术问题时才调用 0.5B，并附来源；完全未命中返回范围提示。
+- 问答：`/api/chat` 先硬件规则路由；再知识库直答（板卡/源码/课件摘录，毫秒级）；未命中技术问题时才调用 0.5B，并附来源；完全未命中交给 0.5B 通用回答（天气说明无实时数据，日期用系统时间）。
 - 限制：图片型真题 DOCX/OneNote 未 OCR；旧平台（F103/STC15）内容只作原理参考。
 
 ## 技能使用

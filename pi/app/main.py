@@ -8,6 +8,7 @@ import json
 import os
 import re
 import secrets
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
@@ -23,7 +24,7 @@ from .knowledge import build_messages, kb
 from .serial_service import SerialService
 from .tool_router import route_tool
 
-APP_VERSION = "0.7.0"
+APP_VERSION = "0.7.2"
 LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
 VLM_URL = "http://127.0.0.1:8081/v1/chat/completions"
 
@@ -361,6 +362,30 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
         return StreamingResponse(tool_stream(), media_type="text/event-stream")
 
+    # Date/time is system state, not a knowledge-base answer.  Answer it
+    # exactly from the Pi clock instead of asking the 0.5B model to guess.
+    if re.search(r"今天(是)?几号|今天(是)?什么日期|现在(是)?什么日期|今天星期几|现在几点|当前时间", last) \
+            and not re.search(r"rtc|板卡|开发板|stm32|lcd|代码|程序|怎么|如何|配置", last, re.I):
+        now = datetime.now()
+        weekdays = "一二三四五六日"
+        time_text = (
+            f"今天是 {now.year} 年 {now.month} 月 {now.day} 日，"
+            f"星期{weekdays[now.weekday()]}；当前时间 {now:%H:%M}（树莓派系统时间）。"
+        )
+
+        async def time_stream():
+            yield "data: " + json.dumps(
+                {"sources": [], "knowledge": {"hits": 0, "chunks": len(kb.docs)}, "mode": "time"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: " + json.dumps(
+                {"choices": [{"delta": {"content": time_text}}], "mode": "time"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(time_stream(), media_type="text/event-stream")
+
     # A short follow-up such as "那代码呢" needs the previous question for
     # retrieval, while the LLM still sees the normal chat history.
     user_msgs = [m.content for m in req.messages if m.role == "user" and m.content]
@@ -406,12 +431,6 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             re.I,
         )
         greeting_re = re.compile(r"^\s*(你好|您好|hi|hello|嗨|在吗|谢谢|感谢|多谢)[！!。,.?\s]*$", re.I)
-        out_of_scope_re = re.compile(r"树莓派|linux|ubuntu|大模型|模型部署|天气|新闻|股票|写诗|翻译|讲个笑话", re.I)
-        board_risk_re = re.compile(
-            r"引脚|管脚|寄存器|PA\d|PB\d|PC\d|PD\d|GPIO|USART|UART|I2C|IIC|ADC|PWM|LED|LCD|RTC|"
-            r"TIM|定时器|中断|时钟|CubeMX|Keil|HAL|代码|程序|配置",
-            re.I,
-        )
 
         async def fixed_stream(text: str, mode: str):
             yield "data: " + json.dumps(
@@ -441,19 +460,8 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             )
             return StreamingResponse(fixed_stream(greet_text, "greeting"), media_type="text/event-stream")
 
-        if out_of_scope_re.search(last) or board_risk_re.search(last):
-            scope_text = (
-                "这个问题不在当前蓝桥杯板卡知识库的覆盖范围内。\n\n"
-                "我主要回答 **CT117E-M4 / STM32G431RBT6** 的：\n"
-                "- 引脚与硬件资源（LED、按键、LCD、ADC、PWM、I2C、USART、RTC）\n"
-                "- CubeMX/Keil/HAL 配置与代码\n"
-                "- 省赛/国赛真题考点与备赛路线\n\n"
-                "如果你问的是树莓派、Linux 或通用大模型部署，建议查阅对应官方文档。"
-            )
-            return StreamingResponse(fixed_stream(scope_text, "scope"), media_type="text/event-stream")
-
-        # 普通对话/常识问题：没有知识库上下文也交给本地 Qwen 回答。
-        # 只有涉及板卡具体引脚/配置且未命中资料时才使用上面的范围提示。
+        # 其余问题（包括天气、通用“代码是什么”等）交给本地 Qwen；
+        # 提示词要求它不要编造实时数据和本板具体引脚。
 
     messages = build_messages(
         [m.model_dump() for m in req.messages], last, context, sources

@@ -148,10 +148,19 @@ function sourcesNode(sources, knowledge, mode) {
   return wrap;
 }
 
+function thinkingHtml(msg) {
+  const modelMode = msg.mode === "rag" || msg.mode === "llm";
+  const elapsed = msg.startedAt ? Math.max(0, Math.floor((Date.now() - msg.startedAt) / 1000)) : 0;
+  const label = modelMode ? "本地模型思考中" : "正在检索资料";
+  const wait = elapsed ? ` 已等待 ${elapsed}s` : "";
+  const note = modelMode
+    ? "0.5B 本地模型可能需要 20–30 秒，请稍候"
+    : "知识库直答通常 1 秒内完成";
+  return `<p class="thinking">${label}…${wait}<br><span>${note}</span></p>`;
+}
+
 function renderAssistantInto(bubble, msg) {
-  bubble.innerHTML = msg.content
-    ? renderMarkdown(msg.content)
-    : '<p class="thinking">正在检索资料并生成回答…</p>';
+  bubble.innerHTML = msg.content ? renderMarkdown(msg.content) : thinkingHtml(msg);
   if (msg.sources?.length) {
     bubble.appendChild(sourcesNode(msg.sources, msg.knowledge, msg.mode));
   }
@@ -313,7 +322,14 @@ async function sendMessage() {
     .slice(-12)
     .map((m) => ({ role: m.role, content: m.content }));
 
-  const assistant = { role: "assistant", content: "", sources: [], knowledge: null, mode: null };
+  const assistant = {
+    role: "assistant",
+    content: "",
+    sources: [],
+    knowledge: null,
+    mode: null,
+    startedAt: Date.now(),
+  };
   session.messages.push(assistant);
   const node = messageNode(assistant);
   messagesEl.appendChild(node);
@@ -323,6 +339,12 @@ async function sendMessage() {
   state.streaming = true;
   sendBtn.disabled = false;
   state.controller = new AbortController();
+
+  const thinkingTimer = setInterval(() => {
+    if (assistant.content) return;
+    const p = bubble.querySelector(".thinking");
+    if (p) p.outerHTML = thinkingHtml(assistant);
+  }, 1000);
 
   try {
     const resp = await fetch("/api/chat", {
@@ -377,6 +399,7 @@ async function sendMessage() {
       assistant.content += `\n\n> 请求失败：${err.message}`;
     }
   } finally {
+    clearInterval(thinkingTimer);
     bubble.classList.remove("typing");
     if (!assistant.content) assistant.content = "（无响应）";
     renderAssistantInto(bubble, assistant);

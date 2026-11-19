@@ -15,6 +15,7 @@ import re
 import threading
 import time
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -736,13 +737,21 @@ kb = KnowledgeBase()
 
 
 SYSTEM_PROMPT = """你是蓝桥杯嵌入式 AI 助教，专精 CT117E-M4（STM32G431RBT6，Keil + CubeMX + HAL）。学生多为零基础。
-回答要求：先结论，再步骤/代码要点，最后易错点；优先依据【检索资料】，不足时说不确定，不编造引脚或代码；旧平台（F103/STC15）只能参考原理，不能照抄引脚；引用资料标 [1][2]；中文回答，300 字以内，代码用 Markdown。"""
+回答要求：先结论，再步骤/代码要点，最后易错点；优先依据【检索资料】，不足时用通用知识简短回答，不编造引脚或代码；也可以正常聊天。
+没有联网能力：天气问题只能回答“我无法获取实时天气，请查看手机天气”，不得给出城市、日期、温度等天气细节；日期/星期问题直接使用下方“当前日期”回答。
+问“代码是什么”时，用 2–3 句解释：代码是编程语言写成的指令集合，源文件经编译/下载运行；举一个 C 语言例子；不要只回答 STM32 代码。旧平台（F103/STC15）只能参考原理，不能照抄引脚；引用资料标 [1][2]；中文回答，300 字以内，代码用 Markdown。"""
 
 
 def build_messages(history: List[dict], question: str, context: str,
                    sources: List[dict]) -> List[dict]:
     """Build a compact Qwen prompt: system + at most one prior turn + context."""
-    msgs: List[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    now = datetime.now()
+    weekdays = "一二三四五六日"
+    current = f"{now.year}年{now.month}月{now.day}日 星期{weekdays[now.weekday()]}"
+    msgs: List[dict] = [{
+        "role": "system",
+        "content": SYSTEM_PROMPT + f"\n当前日期：{current}。",
+    }]
     # Long chat history multiplies prompt-processing latency on the Pi.  The
     # retrieval query already includes the previous question for follow-ups,
     # so keep only the immediately preceding user turn when it adds context.
@@ -760,8 +769,12 @@ def build_messages(history: List[dict], question: str, context: str,
         )
     else:
         user = (
-            "【检索资料】未命中知识库。\n\n【用户问题】\n" + question +
-            "\n\n请用通用知识简要回答；涉及 CT117E-M4 的具体引脚、寄存器或代码时，必须说明不确定并建议查官方资源包。"
+            "【检索资料】未命中知识库。\n\n"
+            "请直接回答下面的问题，不要复述问题。\n"
+            "- 一般概念、代码含义、学习建议：用通用知识简短回答；\n"
+            "- 实时天气、新闻、股价等：明确说明无法获取实时数据，不要编造；\n"
+            "- 涉及 CT117E-M4 的具体引脚、寄存器、接线：说明不确定，建议查官方资源包。\n\n"
+            "【用户问题】\n" + question
         )
     msgs.append({"role": "user", "content": user})
     return msgs

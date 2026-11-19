@@ -726,3 +726,10 @@ button, input, textarea { font-family: inherit; }
 }
 
 .access-url:hover { border-color: var(--accent); background: rgba(79, 140, 255, .06); }
+
+.thinking span {
+  display: block;
+  margin-top: 4px;
+  color: #5f6880;
+  font-size: 11px;
+}

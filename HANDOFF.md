@@ -41,7 +41,7 @@
   - PC 侧 `scripts/build_knowledge.py` 提取 37 份 PPT（OLE 文本原子）、3 份 PDF、3 份 DOCX、3 份 XLSX、51 个源码压缩包（仅 `.c/.h/.ioc`，过滤 HAL/CMSIS/构建产物），并加入 `docs/board_facts.md` 与本机固件。
   - 生成 `knowledge/chunks.jsonl`（1608 片段 / 2.62MB 文本）+ `manifest.json`；`knowledge/` 已 gitignore，不上传。
   - `pi/app/knowledge.py`：中文 bigram + ASCII 标识符 + 同义词 BM25；板卡事实卡/本机固件加权；`/api/knowledge/status|search|reload`。
-  - `/api/chat`：硬件规则路由 → 知识库直答（板卡/本机固件/官方 BSP/课件摘录）→ 0.5B RAG 回退 → 范围提示；SSE 先发 `sources`，前端显示“知识库直答/RAG 生成”和可展开来源。
+  - `/api/chat`：硬件规则路由 → 知识库直答（板卡/本机固件/官方 BSP/课件摘录）→ 0.5B RAG 回退 → 0.5B 通用回答（天气/日期有安全约束）；SSE 先发 `sources`，前端显示“知识库直答/RAG 生成”和可展开来源。
   - 前端：品牌改为“蓝桥杯 AI 助教”、CT117E-M4 副标题、8 个快捷问题、知识库片段数、来源卡片；硬件控制面板保留。
   - 实测：LED/USART/I2C/PWM/LCD/入门/真题/竞赛简介/NVIC/输入捕获均 **0.04–0.05s 直答**；硬件命令“让 LED1 亮起来”仍执行 `OK LED 1 1`。
   - 身份/问候修复：`你是谁/你能做什么` → `mode=meta`，`你好/谢谢` → `mode=greeting`；普通无资料问题交 Qwen；树莓派运行环境已加入事实卡第 12 节。
@@ -139,7 +139,7 @@
 | 2026-11-19 | M8 检索 | `/api/knowledge/search?q=LED` | 3ms；板卡事实卡/本机固件命中 |
 | 2026-11-19 | M8 直答 | `/api/chat` LED/I2C/PWM/USART/LCD | **0.04s**；来源 2 条 |
 | 2026-11-19 | M8 课件 | NVIC / 输入捕获 | 0.05s；PPT 摘录 / 代码 + PPT |
-| 2026-11-19 | M8 范围 | “树莓派是什么” | 0.03s；范围提示，不调用模型 |
+| 2026-11-19 | M8 通用 | “天气怎么样/代码是什么/今天几号” | 14s/3.5s/0.03s；天气不编造，日期用系统时间 |
 | 2026-11-19 | 前端 DOM | 浏览器打开页面、快捷问题、来源卡片 | 通过；截图 API 超时，未取得视觉截图 |
 | 2026-11-19 | 硬件分流 | 前端“让 LED1 亮起来” | `OK LED 1 1`；随后关闭 |
 | 2026-11-19 | 提交/标签 | `git push origin main` / `v0.6.0` | commit `3152139`，tag 已推送 |
