@@ -24,7 +24,7 @@ from .knowledge import build_messages, kb
 from .serial_service import SerialService
 from .tool_router import route_tool
 
-APP_VERSION = "0.7.2"
+APP_VERSION = "0.7.3"
 LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
 VLM_URL = "http://127.0.0.1:8081/v1/chat/completions"
 

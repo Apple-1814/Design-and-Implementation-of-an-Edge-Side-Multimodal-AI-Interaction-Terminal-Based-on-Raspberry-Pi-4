@@ -9,6 +9,7 @@ import os
 import subprocess
 import threading
 import time
+from pathlib import Path
 from typing import Optional
 
 import serial
@@ -41,7 +42,22 @@ class SerialService:
         self._opening = False
         self.last_error: str = ""
         self.last_response: str = ""
+        self.open_count: int = 0
+        self.banner_count: int = 0
+        self.last_open_at: float = 0.0
+        self._log_path = Path(os.environ.get(
+            "SERIAL_LOG", str(Path.home() / "ai-terminal" / "logs" / "serial.log")
+        ))
+        self._log("SERVICE START")
         self._start_open()
+
+    def _log(self, text: str) -> None:
+        try:
+            self._log_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._log_path.open("a", encoding="utf-8") as f:
+                f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {text}\n")
+        except Exception:
+            pass
 
     def _start_open(self) -> None:
         with self._lock:
@@ -54,13 +70,20 @@ class SerialService:
         try:
             while True:
                 if self._open():
-                    # Show the fixed demo IP on the board LCD for classroom use.
-                    try:
-                        self.command("LCDCLR", wait=1.2)
-                        self.command(f"LCD 1 {self.demo_ip}", wait=0.8)
-                        self.command("LCD 2 READY", wait=0.8)
-                    except Exception:
-                        pass
+                    # Only the first open after service start may overwrite the
+                    # LCD with the demo banner.  A reconnect must not wipe a
+                    # student's LCD content with READY.
+                    if self.banner_count == 0:
+                        try:
+                            self.command("LCDCLR", wait=1.2)
+                            self.command(f"LCD 1 {self.demo_ip}", wait=0.8)
+                            self.command("LCD 2 READY", wait=0.8)
+                            self.banner_count += 1
+                            self._log("LCD banner sent")
+                        except Exception as exc:
+                            self._log(f"LCD banner failed: {exc}")
+                    else:
+                        self._log("REOPEN: skip LCD banner")
                     break
                 time.sleep(2.0)
         finally:
@@ -80,6 +103,9 @@ class SerialService:
             with self._lock:
                 self._ser = ser
                 self.last_error = ""
+                self.open_count += 1
+                self.last_open_at = time.time()
+                self._log(f"OPEN #{self.open_count} {self.port} @{self.baud}")
             return True
         except Exception as exc:  # noqa: BLE001 - report the real cause
             with self._lock:
@@ -113,6 +139,7 @@ class SerialService:
                 raise RuntimeError("serial not ready (opening or blocked)")
             try:
                 self._ser.reset_input_buffer()
+                self._log(f"> {command}")
                 self._ser.write((command.strip() + "\n").encode("ascii"))
                 self._ser.flush()
                 deadline = time.time() + wait
@@ -123,9 +150,11 @@ class SerialService:
                         data += chunk
                 text = data.decode("utf-8", errors="replace").strip()
                 self.last_response = text
+                self._log(f"< {text[:160]}")
                 return text
             except Exception as exc:  # noqa: BLE001
                 self.last_error = f"{type(exc).__name__}: {exc}"
+                self._log(f"! {type(exc).__name__}: {exc}")
                 self._close_locked()
                 raise
 
@@ -139,4 +168,7 @@ class SerialService:
             "last_response": self.last_response,
             "demo_ip": self.demo_ip,
             "access_url": f"http://{self.demo_ip}:8000/",
+            "open_count": self.open_count,
+            "banner_count": self.banner_count,
+            "last_open_at": self.last_open_at,
         }

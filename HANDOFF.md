@@ -5,7 +5,7 @@
 
 ## 当前阶段
 
-实测评估完成；**M1–M9 全部验证**；**M8 蓝桥杯知识库已上线**：1608 片段 / 464 来源，板卡/源码/课件直答约 0.04s，开放问题才调用 Qwen2.5-0.5B；前端为“蓝桥杯 AI 助教”，附资料来源与快捷问题。**M9 板卡控制增强**：8 LED 下拉选择 + 全亮/全灭，ADC1+ADC2、PWM1+PWM2 双通道，固件 v0.3.0 已烧录。
+实测评估完成；**M1–M10 全部验证**；**M8 蓝桥杯知识库已上线**：1608 片段 / 464 来源，板卡/源码/课件直答约 0.04s，开放问题才调用 Qwen2.5-0.5B；前端为“蓝桥杯 AI 助教”，附资料来源与快捷问题。**M9 板卡控制增强**：8 LED 下拉选择 + 全亮/全灭，ADC1+ADC2、PWM1+PWM2 双通道，固件 v0.3.0 已烧录。**M10**：LCD 横幅只在首次打开串口时发送，重连不再覆盖队友显示内容。
 
 ## 已完成
 
@@ -50,6 +50,7 @@
   - 后端：`/api/device/adc?ch=1|2`、`/api/device/pwm2`、`/api/device/leds`、`/api/device/ledall`；单灯命令返回完整位图。
   - 前端：LED 改为下拉框选 LD1–LD8 + 开/关 + 全亮/全灭/回读；ADC1/ADC2 独立读取与电压；PWM1/PWM2 双滑杆 + 应用两路 + 回读；请求序号防止旧回包覆盖。
   - 实测：ADC1=369、ADC2=1414；PWM1 20%/PWM2 40% 设置与回读一致；LD3 单灯、全亮 FF、全灭 00；前端数值/位图同步。
+- **M10 LCD 覆盖修复**：串口服务原来每次 open/重连都发 `LCDCLR` + IP + `READY`，会覆盖队友显示内容；改为仅服务首次打开时发横幅，重连跳过。新增 `open_count/banner_count/last_open_at` 状态和 `~/ai-terminal/logs/serial.log`；重连与 6 并发 LCD 测试通过。
 - **局域网/跨网访问**：
   - 局域网：Pi `wlan0=192.168.1.165`（OpenWrt），其他电脑同一 Wi-Fi 打开 `http://192.168.1.165:8000/`；`eth0=192.168.49.50` 仅直连维护。面板/LCD 自动显示当前 Wi-Fi IP。
   - 跨网：Cloudflare quick tunnel 已运行；当前 `https://consensus-unlimited-sword-poly.trycloudflare.com`；公网请求需 Basic 密码（`~/.ai_terminal_access`，不入 Git），局域网访问免密。
@@ -153,4 +154,6 @@
 | 2026-11-19 | 公网无密码 | `curl -I https://…trycloudflare.com/` | **401** |
 | 2026-11-19 | 公网带密码 | `curl -I -u admin:… https://…/` | **200**；静态资源/SSE 正常 |
 | 2026-11-19 | 公网身份头 | `/api/whoami` | `cf_connecting_ip` 可见，`remote_auth=true` |
+| 2026-11-19 | M10 重连 | LCD TEST1 → reconnect → LCD TEST2 | 日志 `REOPEN: skip LCD banner`，TEST2 保留 |
+| 2026-11-19 | M10 并发 | 6 客户端同时 LCD | 6/6 `OK LCD`；`open_count=2/banner_count=1` |
 | — | PWM 物理波形 | PA2/PA3 万用表/示波器 | 待 HIL（0/50/100% ≈ 0/1.65/3.3V） |

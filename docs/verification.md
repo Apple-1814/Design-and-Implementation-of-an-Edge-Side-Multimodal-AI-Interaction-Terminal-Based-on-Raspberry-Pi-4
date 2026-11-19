@@ -145,6 +145,17 @@
 | LED 全控 | `/api/device/ledall` FF/00 | FF 全亮 / 00 全灭 |
 | 前端面板 | 浏览器 DOM/数值检查 | 下拉选灯、ADC1/2、PWM1/2 同步；请求序号防乱序 |
 
+### M10 LCD 被 READY 覆盖修复（2026-11-19）
+
+| 项 | 操作 | 结果 |
+|---|---|---|
+| 根因 | 串口服务每次打开/重连都发送 `LCDCLR` + IP + `READY` 横幅 | 队友显示内容被覆盖 |
+| 修复 | 横幅只在服务首次打开时发送；重连不再覆盖 LCD | `banner_count=1` |
+| 重连测试 | LCD TEST1 → `/api/device/reconnect` → LCD TEST2 | 日志 `REOPEN: skip LCD banner`；TEST2 保留 |
+| 并发测试 | 6 个客户端同时 POST `/api/device/lcd` | 6/6 `OK LCD`；`open_count` 不变 |
+| 诊断字段 | `/api/device/status` | `open_count`、`banner_count`、`last_open_at` |
+| 串口日志 | `~/ai-terminal/logs/serial.log` | 记录 OPEN/命令/响应/横幅 |
+
 ### 已知现象
 
 - 板载 VCP 只接受**单次持久会话**；频繁 open/close 会导致写阻塞（`rc=124`）。
