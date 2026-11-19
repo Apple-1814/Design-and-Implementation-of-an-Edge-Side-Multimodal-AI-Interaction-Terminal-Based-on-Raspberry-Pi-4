@@ -1,11 +1,11 @@
 # HANDOFF — 当前状态
 
 > 覆盖式维护，≤200 行。详细方案见 `计划书.md`。
-> 更新时间：2026-11-19 19:50
+> 更新时间：2026-11-19 20:45
 
 ## 当前阶段
 
-实测评估完成；**M1–M7 全部验证**；**M8 蓝桥杯知识库已上线**：1607 片段 / 464 来源，板卡/源码/课件直答约 0.04s，开放问题才调用 Qwen2.5-0.5B；前端已改为“蓝桥杯 AI 助教”，附资料来源与快捷问题。硬件命令仍走规则路由，已验证可直接执行。
+实测评估完成；**M1–M9 全部验证**；**M8 蓝桥杯知识库已上线**：1608 片段 / 464 来源，板卡/源码/课件直答约 0.04s，开放问题才调用 Qwen2.5-0.5B；前端为“蓝桥杯 AI 助教”，附资料来源与快捷问题。**M9 板卡控制增强**：8 LED 下拉选择 + 全亮/全灭，ADC1+ADC2、PWM1+PWM2 双通道，固件 v0.3.0 已烧录。
 
 ## 已完成
 
@@ -39,19 +39,24 @@
 - **开机自启完成**：`llama.service`、`vlm.service`、`ai-terminal.service` 均 enabled/active；重启验证 API **22s** 上线；eth0 固定 `192.168.49.50`；LCD 显示 IP/READY；新增 `pi/systemd/`、`scripts/install_services.sh`、`docs/课堂演示网络配置.md`。
 - **M8 知识库完成**：
   - PC 侧 `scripts/build_knowledge.py` 提取 37 份 PPT（OLE 文本原子）、3 份 PDF、3 份 DOCX、3 份 XLSX、51 个源码压缩包（仅 `.c/.h/.ioc`，过滤 HAL/CMSIS/构建产物），并加入 `docs/board_facts.md` 与本机固件。
-  - 生成 `knowledge/chunks.jsonl`（1607 片段 / 2.62MB 文本）+ `manifest.json`；`knowledge/` 已 gitignore，不上传。
+  - 生成 `knowledge/chunks.jsonl`（1608 片段 / 2.62MB 文本）+ `manifest.json`；`knowledge/` 已 gitignore，不上传。
   - `pi/app/knowledge.py`：中文 bigram + ASCII 标识符 + 同义词 BM25；板卡事实卡/本机固件加权；`/api/knowledge/status|search|reload`。
   - `/api/chat`：硬件规则路由 → 知识库直答（板卡/本机固件/官方 BSP/课件摘录）→ 0.5B RAG 回退 → 范围提示；SSE 先发 `sources`，前端显示“知识库直答/RAG 生成”和可展开来源。
   - 前端：品牌改为“蓝桥杯 AI 助教”、CT117E-M4 副标题、8 个快捷问题、知识库片段数、来源卡片；硬件控制面板保留。
   - 实测：LED/USART/I2C/PWM/LCD/入门/真题/竞赛简介/NVIC/输入捕获均 **0.04–0.05s 直答**；硬件命令“让 LED1 亮起来”仍执行 `OK LED 1 1`。
   - 身份/问候修复：`你是谁/你能做什么` → `mode=meta`，`你好/谢谢` → `mode=greeting`；普通无资料问题交 Qwen；树莓派运行环境已加入事实卡第 12 节。
+- **M9 板卡控制增强**：
+  - 固件 v0.3.0：ADC2（PB15/ADC2_IN15）、PWM2（PA3/TIM15_CH2），PWM1/2 均 1kHz、0–100%；新增 `ADC2?`/`PWM2?`，`PWM <ch>` 支持 ch=1/2。
+  - 后端：`/api/device/adc?ch=1|2`、`/api/device/pwm2`、`/api/device/leds`、`/api/device/ledall`；单灯命令返回完整位图。
+  - 前端：LED 改为下拉框选 LD1–LD8 + 开/关 + 全亮/全灭/回读；ADC1/ADC2 独立读取与电压；PWM1/PWM2 双滑杆 + 应用两路 + 回读；请求序号防止旧回包覆盖。
+  - 实测：ADC1=369、ADC2=1414；PWM1 20%/PWM2 40% 设置与回读一致；LD3 单灯、全亮 FF、全灭 00；前端数值/位图同步。
 
 ## 待办
 
 | # | 事项 | 影响 | 下一步 |
 |---|---|---|---|
-| 1 | 最终提交 + tag `v0.6.0` | 交付 | **已完成**（commit `3152139`，已推送） |
-| 2 | PWM 物理波形/ADC 电位器变化 | HIL 证据 | 万用表/示波器复测 |
+| 1 | 最终提交 + tag `v0.7.0` | 交付 | 本次提交（含 M9 双通道） |
+| 2 | PWM 物理波形/ADC 电位器变化 | HIL 证据 | PA2/PA3 与 PB12/PB15 万用表/示波器复测 |
 | 3 | 组内分工 | 报告分工 | 用户确认 8–10 人角色 |
 | 4 | 指导老师要求 | 仿真/焊接/PCB | 用户确认 |
 | 5 | 摄像头 | 可选扩展 | 当前无摄像头 |
@@ -60,7 +65,7 @@
 
 ## 下一步（按顺序）
 
-1. **已完成**：commit/push + tag `v0.6.0`（含知识库构建、RAG 后端、助教前端）。
+1. **已完成**：commit/push + tag `v0.7.0`（含双通道控制、知识库、RAG、助教前端）。
 2. 组员补拍实物照片、替换 UI 示意图、填写封面信息；按 `docs/课堂演示网络配置.md` 彩排。
 3. 可选：PWM/ADC 物理复测；图片型真题 OCR。
 
@@ -74,7 +79,7 @@
 | VLM 输入 | 网页上传图片，不做 Pi 摄像头 | 当前无摄像头；上传图片足够课程演示 |
 | 模型分工 | 规则路由硬件命令；RAG 直答板卡/源码；0.5B 只处理开放问题 | Pi 4B 算力有限；0.5B 长上下文约 19 tok/s，直答可避免 30–80s 延迟 |
 | LLM 边界 | 硬件动作只走白名单规则；LLM 不直接操作硬件 | 防止幻觉直接控制板子 |
-| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 | 无需向量库/额外服务；1607 片段查询 3ms |
+| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 | 无需向量库/额外服务；1608 片段查询 3ms |
 | 前端 | 无构建 HTML/CSS/JS，Pi 静态托管 | Pi 没装 Node；浏览器已验证 |
 | 烧录安全 | 只烧 manifest 内固件；烧录前备份 | 已实际备份 128KB，可作为回滚依据 |
 
@@ -126,7 +131,7 @@
 | 2026-11-18 | M6 稳定性 | `scripts/stability_test.py --duration 1800` | 1801.4s / **933 次检查 / 0 失败**；最高 47.2°C；最低空闲 6251MB |
 | 2026-11-18 | M7 Word | `python scripts/build_report_docx.py` | 478KB；7 表；9 图 |
 | 2026-11-18 | M7 PPT | `python scripts/build_ppt.py` | 当前 11 页 |
-| 2026-11-19 | M8 构建 | `python scripts/build_knowledge.py` | 1607 片段 / 464 来源 / 2.62MB 文本 |
+| 2026-11-19 | M8 构建 | `python scripts/build_knowledge.py` | 1608 片段 / 464 来源 / 2.62MB 文本 |
 | 2026-11-19 | M8 检索 | `/api/knowledge/search?q=LED` | 3ms；板卡事实卡/本机固件命中 |
 | 2026-11-19 | M8 直答 | `/api/chat` LED/I2C/PWM/USART/LCD | **0.04s**；来源 2 条 |
 | 2026-11-19 | M8 课件 | NVIC / 输入捕获 | 0.05s；PPT 摘录 / 代码 + PPT |
@@ -134,4 +139,9 @@
 | 2026-11-19 | 前端 DOM | 浏览器打开页面、快捷问题、来源卡片 | 通过；截图 API 超时，未取得视觉截图 |
 | 2026-11-19 | 硬件分流 | 前端“让 LED1 亮起来” | `OK LED 1 1`；随后关闭 |
 | 2026-11-19 | 提交/标签 | `git push origin main` / `v0.6.0` | commit `3152139`，tag 已推送 |
-| — | PWM 物理波形 | PA2 万用表/示波器 | 待 HIL（0/50/100% ≈ 0/1.65/3.3V） |
+| 2026-11-19 | M9 固件 | Keil `UV4 -b` + pyOCD | 0 error/0 warning；烧录 32 页；v0.3.0 |
+| 2026-11-19 | M9 ADC | `GET /api/device/adc?ch=1/2` | ADC1=369 / ADC2=1414；电压 0.297/1.139V |
+| 2026-11-19 | M9 PWM | `POST /api/device/pwm` ch=1/2 | 20%/40% 设置与回读一致 |
+| 2026-11-19 | M9 LED | `/leds`、`/ledall`、单灯 | LD3 单灯、FF 全亮、00 全灭 |
+| 2026-11-19 | M9 前端 | 下拉选灯、双 ADC、双 PWM | 位图 04、PWM 回读 20%/40% 同步 |
+| — | PWM 物理波形 | PA2/PA3 万用表/示波器 | 待 HIL（0/50/100% ≈ 0/1.65/3.3V） |

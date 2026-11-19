@@ -483,15 +483,71 @@ $("#clearChat").addEventListener("click", () => {
   renderMessages();
 });
 
-document.querySelectorAll("[data-led]").forEach((btn) => {
-  btn.addEventListener("click", async () => {
-    await deviceFetch("/api/device/led", {
+const ledState = new Set();
+let ledSeq = 0;
+
+function renderLedState() {
+  let mask = 0;
+  document.querySelectorAll("#ledSelect option").forEach((opt) => {
+    const id = Number(opt.value);
+    const on = ledState.has(id);
+    opt.textContent = `LD${id}${on ? " ●" : ""}`;
+    if (on) mask |= 1 << (id - 1);
+  });
+  $("#ledMask").textContent = mask.toString(16).toUpperCase().padStart(2, "0");
+}
+
+function applyLedStates(states) {
+  ledState.clear();
+  Object.entries(states || {}).forEach(([id, on]) => {
+    if (on) ledState.add(Number(id));
+  });
+  renderLedState();
+}
+
+async function refreshLeds() {
+  const seq = ++ledSeq;
+  try {
+    const data = await deviceFetch("/api/device/leds");
+    if (data.ok && seq === ledSeq) applyLedStates(data.states);
+  } catch (err) {
+    logPanel(`LED 回读失败：${err.message}`);
+  }
+}
+
+async function setLed(id, on) {
+  const seq = ++ledSeq;
+  try {
+    const data = await deviceFetch("/api/device/led", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: Number(btn.dataset.led), on: btn.dataset.on === "1" }),
+      body: JSON.stringify({ id, on }),
     });
-  });
-});
+    if (data.ok && data.states && seq === ledSeq) applyLedStates(data.states);
+  } catch (err) {
+    logPanel(`LED${id} 失败：${err.message}`);
+  }
+}
+
+async function setAllLeds(mask) {
+  const seq = ++ledSeq;
+  try {
+    const data = await deviceFetch("/api/device/ledall", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mask }),
+    });
+    if (data.ok && data.states && seq === ledSeq) applyLedStates(data.states);
+  } catch (err) {
+    logPanel(`LED 全控失败：${err.message}`);
+  }
+}
+
+$("#ledOn").addEventListener("click", () => setLed(Number($("#ledSelect").value), true));
+$("#ledOff").addEventListener("click", () => setLed(Number($("#ledSelect").value), false));
+$("#ledAllOn").addEventListener("click", () => setAllLeds(0xff));
+$("#ledAllOff").addEventListener("click", () => setAllLeds(0x00));
+$("#ledRefresh").addEventListener("click", refreshLeds);
 
 $("#lcdSend").addEventListener("click", async () => {
   await deviceFetch("/api/device/lcd", {
@@ -505,23 +561,98 @@ $("#lcdClear").addEventListener("click", async () => {
   await deviceFetch("/api/device/lcd/clear", { method: "POST" });
 });
 
-$("#adcRead").addEventListener("click", async () => {
-  const data = await deviceFetch("/api/device/adc");
-  $("#adcValue").textContent = data.raw ?? "--";
+let adcBusy = false;
+
+async function readAdc(ch, silent = false) {
+  if (adcBusy) return;
+  adcBusy = true;
+  try {
+    const data = silent
+      ? await (await fetch(`/api/device/adc?ch=${ch}`)).json()
+      : await deviceFetch(`/api/device/adc?ch=${ch}`);
+    if (data.ok) {
+      $(`#adc${ch}Value`).textContent = data.raw;
+      $(`#adc${ch}Voltage`).textContent = Number(data.voltage).toFixed(3) + " V";
+    }
+  } catch (err) {
+    if (!silent) logPanel(`ADC${ch} 读取失败：${err.message}`);
+  } finally {
+    adcBusy = false;
+  }
+}
+
+async function readAllAdc(silent = false) {
+  await readAdc(1, silent);
+  await readAdc(2, silent);
+}
+
+$("#adc1Read").addEventListener("click", () => readAdc(1, false));
+$("#adc2Read").addEventListener("click", () => readAdc(2, false));
+$("#adcAuto").addEventListener("change", (e) => {
+  if (e.target.checked) readAllAdc(true);
 });
 
-const pwmRange = $("#pwmRange");
-pwmRange.addEventListener("input", () => {
-  $("#pwmValue").textContent = pwmRange.value + "%";
-});
+const pwm1Range = $("#pwm1Range");
+const pwm2Range = $("#pwm2Range");
+let pwmSeq = 0;
 
-$("#pwmApply").addEventListener("click", async () => {
-  await deviceFetch("/api/device/pwm", {
+function setPwmUi(ch, duty) {
+  const value = Math.max(0, Math.min(100, Number(duty) || 0));
+  const range = ch === 1 ? pwm1Range : pwm2Range;
+  range.value = String(value);
+  $(`#pwm${ch}Value`).textContent = value + "%";
+  $("#pwmSummary").textContent = `${pwm1Range.value}% / ${pwm2Range.value}%`;
+}
+
+async function writePwm(ch, duty) {
+  return deviceFetch("/api/device/pwm", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ch: 1, duty: Number(pwmRange.value) }),
+    body: JSON.stringify({ ch, duty }),
   });
+}
+
+async function applyBothPwm() {
+  const seq = ++pwmSeq;
+  const d1 = Number(pwm1Range.value);
+  const d2 = Number(pwm2Range.value);
+  try {
+    const r1 = await writePwm(1, d1);
+    const r2 = await writePwm(2, d2);
+    if (seq !== pwmSeq) return;
+    if (r1.ok) setPwmUi(1, r1.duty);
+    if (r2.ok) setPwmUi(2, r2.duty);
+    $("#pwmReadback").textContent = `回读 ${r1.duty ?? "--"}% / ${r2.duty ?? "--"}%`;
+  } catch (err) {
+    logPanel(`PWM 设置失败：${err.message}`);
+  }
+}
+
+async function readPwm() {
+  const seq = ++pwmSeq;
+  try {
+    const r1 = await deviceFetch("/api/device/pwm");
+    const r2 = await deviceFetch("/api/device/pwm2");
+    if (seq !== pwmSeq) return;
+    if (r1.ok) setPwmUi(1, r1.duty);
+    if (r2.ok) setPwmUi(2, r2.duty);
+    $("#pwmReadback").textContent = `回读 ${r1.duty ?? "--"}% / ${r2.duty ?? "--"}%`;
+  } catch (err) {
+    logPanel(`PWM 回读失败：${err.message}`);
+  }
+}
+
+pwm1Range.addEventListener("input", () => {
+  $("#pwm1Value").textContent = pwm1Range.value + "%";
+  $("#pwmSummary").textContent = `${pwm1Range.value}% / ${pwm2Range.value}%`;
 });
+pwm2Range.addEventListener("input", () => {
+  $("#pwm2Value").textContent = pwm2Range.value + "%";
+  $("#pwmSummary").textContent = `${pwm1Range.value}% / ${pwm2Range.value}%`;
+});
+
+$("#pwmApply").addEventListener("click", applyBothPwm);
+$("#pwmRead").addEventListener("click", readPwm);
 
 $("#imageBtn").addEventListener("click", () => $("#imageInput").click());
 $("#imageInput").addEventListener("change", (e) => {
@@ -542,5 +673,17 @@ $("#imageClear").addEventListener("click", clearPendingImage);
 loadSessions();
 refreshStatus();
 refreshKnowledge();
+refreshLeds()
+  .then(() => readPwm())
+  .then(() => readAllAdc(true))
+  .then(() => {
+    setTimeout(() => {
+      if ($("#pwmReadback")?.textContent === "--") readPwm();
+      if ($("#adc1Value")?.textContent === "--" || $("#adc2Value")?.textContent === "--") readAllAdc(true);
+    }, 1200);
+  });
 setInterval(refreshStatus, 5000);
 setInterval(refreshKnowledge, 30000);
+setInterval(() => {
+  if ($("#adcAuto")?.checked) readAllAdc(true);
+}, 1500);

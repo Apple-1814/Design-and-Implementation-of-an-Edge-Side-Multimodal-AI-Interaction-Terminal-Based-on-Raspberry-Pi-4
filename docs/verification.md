@@ -115,10 +115,10 @@
 
 | 项 | 命令/操作 | 结果 |
 |---|---|---|
-| 构建 | `python scripts/build_knowledge.py` | 1607 片段 / 464 来源 / 2,624,792 chars |
+| 构建 | `python scripts/build_knowledge.py` | 1608 片段 / 464 来源 / 2,627,820 chars |
 | 覆盖 | PPT/PDF/DOCX/XLSX/源码压缩包 | 37 PPT、3 PDF、3 DOCX、3 XLSX、51 个源码包；过滤 HAL/CMSIS/构建产物 |
 | 索引 | `knowledge/chunks.jsonl` + `manifest.json` | 3.5MB JSONL；sha256 见 manifest |
-| 加载 | `GET /api/knowledge/status` | loaded=true；kinds: board 19 / code 920 / ioc 138 / ppt 66 / pdf 447 / docx 3 / xlsx 14 |
+| 加载 | `GET /api/knowledge/status` | loaded=true；kinds: board 19 / code 921 / ioc 138 / ppt 66 / pdf 447 / docx 3 / xlsx 14 |
 | 检索 | `GET /api/knowledge/search?q=LED怎么点亮` | 约 3ms；板卡事实卡 3.1 + 本机 `bsp_led.c` |
 | 冒烟测试 | `python scripts/test_knowledge.py` | 9 个问答 PASS + 范围外 PASS |
 | 直答 | `POST /api/chat` LED/I2C/PWM/USART/LCD | **0.04s**；`mode=knowledge`；2 条来源 |
@@ -129,6 +129,20 @@
 | 硬件分流 | 前端“让 LED1 亮起来” | `OK LED 1 1`；随后“LED1 关”恢复 |
 | 前端 DOM | 浏览器打开 `/`、快捷问题、来源卡片 | 通过；截图 API 30s 超时，未取得视觉截图 |
 | 知识库排除 | `git status` / `.gitignore` | `knowledge/` 已忽略，不入库 |
+
+### M9 双通道板卡控制（2026-11-19）
+
+| 项 | 命令/操作 | 结果 |
+|---|---|---|
+| Keil 编译 | `UV4 -b firmware/MDK-ARM/HAL_01_LED_TEST.uvprojx` | **0 error / 0 warning** |
+| 固件烧录 | `pyocd flash ... command_firmware.hex` | 擦 16 扇区 / 写 32 页；v0.3.0 |
+| ADC1 | `GET /api/device/adc?ch=1` | `OK ADC 369`；0.297 V；PB12/ADC1_IN11 |
+| ADC2 | `GET /api/device/adc?ch=2` | `OK ADC2 1414`；1.139 V；PB15/ADC2_IN15 |
+| PWM1/2 设置 | `POST /api/device/pwm` ch=1/2 | `OK PWM 1 20` / `OK PWM 2 40` |
+| PWM1/2 回读 | `GET /api/device/pwm` + `/pwm2` | 20% / 40%，与设置一致 |
+| LED 单灯 | 前端下拉选 LD3 → 开 | `mask=04`，LD3 ● |
+| LED 全控 | `/api/device/ledall` FF/00 | FF 全亮 / 00 全灭 |
+| 前端面板 | 浏览器 DOM/数值检查 | 下拉选灯、ADC1/2、PWM1/2 同步；请求序号防乱序 |
 
 ### 已知现象
 
@@ -154,4 +168,5 @@ sudo sh -c 'echo 0 > /sys/bus/usb/devices/1-1.1/authorized; sleep 1; echo 1 > /s
 | M5 | SmolVLM 上传图片问答 | **基础验证**：单图 34.11s，返回 `HELLO` |
 | M6 | 整机联调 30 分钟稳定性 | **已验证**：933 次检查 / 0 失败；最高 47.2°C |
 | M7 | 报告、图表、演示、PPT | **Word/PPT/图表/稳定性数据已完成** |
-| M8 | 蓝桥杯知识库/RAG/助教前端 | **已验证**：1607 片段；直答 0.04s；模型回退 20–35s |
+| M8 | 蓝桥杯知识库/RAG/助教前端 | **已验证**：1608 片段；直答 0.04s；模型回退 20–35s |
+| M9 | 8 LED / ADC×2 / PWM×2 | **已验证**：ADC1/2、PWM1/2、LED 全控；物理波形待 HIL |

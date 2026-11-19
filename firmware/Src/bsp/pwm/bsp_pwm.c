@@ -99,6 +99,10 @@ void PWM_Output_TIM15_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 void PWM_SetDuty(uint8_t duty)
@@ -108,4 +112,13 @@ void PWM_SetDuty(uint8_t duty)
     duty = 100u;
   }
   __HAL_TIM_SET_COMPARE(&htim15, TIM_CHANNEL_1, (uint32_t)duty * 10u);
+}
+
+void PWM_SetDuty2(uint8_t duty)
+{
+  if (duty > 100u)
+  {
+    duty = 100u;
+  }
+  __HAL_TIM_SET_COMPARE(&htim15, TIM_CHANNEL_2, (uint32_t)duty * 10u);
 }

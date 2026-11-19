@@ -39,14 +39,14 @@
 | 固件 | C + STM32CubeG4 HAL，Keil MDK 5（例程为 `MDK-ARM V5`） | 已验证 0 error / 0 warning |
 | 烧录 | 树莓派上 **pyOCD + Keil STM32G4 DFP**，经 CMSIS-DAP SWD；PC Keil 兜底 | 已验证 |
 | 推理 | llama.cpp（GGUF Q4/Q8），Qwen2.5-0.5B，SmolVLM-500M | 已验证 7.26 tok/s / 34s 单图 |
-| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 + 模型回退 | 1607 片段 / 464 来源 |
+| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 + 模型回退 | 1608 片段 / 464 来源 |
 | 后端 | Python 3.8 + FastAPI + uvicorn + pyserial | 已验证 |
 | 前端 | 无构建 HTML/CSS/JS，Pi 静态托管 | 已验证 |
 | 通信 | 浏览器 ⇄ Pi：HTTP/SSE；Pi ⇄ STM32：UART 9600 8N1 行协议 | 已验证 |
 
 ### 双模式控制
 
-1. **命令模式（主，已实现）**：STM32 常驻通用固件，Pi 发送 `PING/LED/LEDALL/LCD/LCDCLR/ADC?/PWM/PWM?` 行命令，毫秒级、不复位。
+1. **命令模式（主，已实现）**：STM32 常驻通用固件，Pi 发送 `PING/LED/LEDALL/LED?/LCD/LCDCLR/ADC?/ADC2?/PWM/PWM2/PWM?/PWM2?` 行命令，毫秒级、不复位。
 2. **固件模式（演示，已验证）**：预编译 `.hex` 经 pyOCD 烧录，板子复位后脱机运行；仅允许 `firmware/release/manifest.json` 白名单。
 
 ### 知识库 RAG（已实现）
@@ -99,7 +99,7 @@ tooling/     工具链契约、烧录/HIL 指南
 | # | 事项 | 影响 |
 |---|---|---|
 | 1 | 组内分工与报告封面信息 | 报告完整性 |
-| 2 | PWM PA2 波形/ADC 电位器物理复测 | HIL 证据 |
+| 2 | PWM PA2/PA3 波形、ADC PB12/PB15 电位器物理复测 | HIL 证据 |
 | 3 | 是否补拍实物照片/浏览器截图替换示意图 | 报告/答辩 |
 | 4 | 指导老师是否强制 Proteus 仿真/焊接/自制 PCB | 硬件工作量 |
 | 5 | 是否做图片型真题 OCR | 真题题面覆盖度 |

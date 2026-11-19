@@ -138,7 +138,7 @@ def main():
         "蓝桥杯 CT117E-M4，STM32G431RBT6",
         "板载 CMSIS-DAP：烧录 + 9600 VCP",
         "USART1 PA9/PA10（AF_PP 推挽）",
-        "LED PC8–PC15；ADC PB12；PWM PA2",
+        "LED PC8–PC15；ADC1 PB12 / ADC2 PB15；PWM1 PA2 / PWM2 PA3",
         "官方 27W 电源，避免欠压与 VCP 重枚举",
     ], 16)
     picture(s, "wiring.png", 6.1, 1.35, 6.6, 5.5)
@@ -148,7 +148,7 @@ def main():
     title_bar(s, "固件与 UART 命令协议", 5)
     bullets(s, 0.7, 1.4, 5.4, 5.3, [
         "Keil MDK V5，HAL + BSP，0 error / 0 warning",
-        "命令：PING / LED / LEDALL / LCD / LCDCLR / ADC? / PWM / PWM?",
+        "命令：PING / LED / LEDALL / LCD / ADC? / ADC2? / PWM / PWM2 / PWM? / PWM2?",
         "中断只入环形缓冲，主循环解析并执行",
         "ACK / ERR 返回；9600 8N1 持久会话",
         "归档固件：command_firmware.hex（sha256）",
@@ -183,7 +183,7 @@ def main():
     bullets(s, 9.35, 1.5, 3.6, 5.3, [
         "类 DeepSeek 深色聊天界面",
         "SSE 流式输出、会话历史",
-        "设备面板：LED/LCD/ADC/PWM",
+        "设备面板：8 LED / 双 ADC / 双 PWM",
         "图片上传 → /api/vision",
         "规则路由优先：中文指令直接执行",
         "知识库直答 + 资料来源卡片",
@@ -193,7 +193,7 @@ def main():
     # 8 knowledge base
     s = prs.slides.add_slide(prs.slide_layouts[6])
     title_bar(s, "蓝桥杯知识库 RAG", 8)
-    textbox(s, 0.8, 1.35, 11.8, 0.6, "1607 个片段 · 464 个来源 · 2.62MB 文本", 26, True, GREEN)
+    textbox(s, 0.8, 1.35, 11.8, 0.6, "1608 个片段 · 464 个来源 · 2.62MB 文本", 26, True, GREEN)
     bullets(s, 0.8, 2.2, 5.7, 4.4, [
         "资料：章节 PPT、产品手册、实训指导书",
         "真题汇编目录、考点统计、官方/历年源码",
@@ -219,10 +219,10 @@ def main():
         "CMSIS-DAP 烧录 + 原固件备份成功；Keil 0 error / 0 warning",
         "UART 9600 双向：PING → OK PONG；LED 闪 5 下",
         "LED 单灯/全亮/全灭正确；LCD 清屏后仅显示 Hello",
-        "ADC 读回 1759；PWM 0/50/100% 回读一致",
+        "ADC1=369 / ADC2=1414；PWM1 20% / PWM2 40% 设置与回读一致",
         "自然语言：「让 LED1 亮起来」「LCD 显示 Hello」「读取 ADC」「PWM 50」均执行",
         "LLM 7.26 tok/s；VLM 单图 34.11 s；30 分钟稳定性 933 次检查 / 0 失败（最高 47.2°C）",
-        "知识库：1607 片段；LED/I2C/PWM/USART/LCD 直答 0.04s，附来源",
+        "知识库：1608 片段；LED/I2C/PWM/USART/LCD 直答 0.04s，附来源",
         "systemd 开机自启：上电后约 22 秒 API 上线（LCD 显示 IP/READY）",
     ], 17)
 

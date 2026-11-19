@@ -60,6 +60,7 @@ int main(void)
   LCD_SetTextColor(Blue);
   LED_Disp(0x01);
   ADC1_Init();
+  ADC2_Init();
   LED_Disp(0x03);
   PWM_Output_TIM15_Init();
   LED_Disp(0x07);

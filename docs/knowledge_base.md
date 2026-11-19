@@ -25,7 +25,7 @@
 | MP4 视频（29 个） | 未转写 | 否 |
 | 图片型真题/OneNote | 未 OCR；只保留标题/目录 | 部分 |
 
-当前索引：**1607 个片段 / 464 个来源 / 约 2.62MB 文本**。
+当前索引：**1608 个片段 / 464 个来源 / 约 2.62MB 文本**。
 
 ## 3. 构建
 
@@ -56,7 +56,7 @@ scp pi/app/knowledge.py apple@<Pi-IP>:~/ai-terminal/pi/app/
 ssh apple@<Pi-IP> 'kill -9 $(pgrep -f "uvicorn app.main" | head -1)'
 ```
 
-服务启动时加载索引（1607 片段在 Pi 上约 1 秒内完成）。
+服务启动时加载索引（1608 片段在 Pi 上约 1 秒内完成）。
 
 ## 5. 检索与问答策略
 

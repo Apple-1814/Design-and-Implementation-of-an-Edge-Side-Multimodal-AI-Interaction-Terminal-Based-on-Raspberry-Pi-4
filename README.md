@@ -16,7 +16,7 @@
    │ USB（CMSIS-DAP VCP）
    ▼
 STM32G431（蓝桥杯 CT117E-M4）
-   通用固件：命令解析 + LED/LCD/ADC/PWM
+   通用固件：LED×8 / LCD / ADC1+ADC2 / PWM1+PWM2
 ```
 
 ## 2. 当前状态
@@ -24,14 +24,15 @@ STM32G431（蓝桥杯 CT117E-M4）
 | 里程碑 | 状态 |
 |---|---|
 | M0 环境与链路 | ✅ Pi 4B 8GB、Ubuntu 20.04、CMSIS-DAP 烧录、9600 UART 双向、原固件备份 |
-| M1 固件命令协议 | ✅ M1a/M1b 已验证：PING/LED/LCD/LCDCLR/ADC/PWM（串口）；PWM 物理波形待 HIL |
-| M2 Pi 后端 | ✅ 已实现：`/api/device/*` + 持久串口 |
+| M1 固件命令协议 | ✅ PING / LED×8 / LEDALL / LCD / ADC1+ADC2 / PWM1+PWM2；固件 v0.3.0 |
+| M2 Pi 后端 | ✅ `/api/device/*` + 持久串口；双 ADC/双 PWM 状态接口 |
 | M3 LLM 部署 | ✅ Qwen2.5-0.5B，7.26 tok/s |
-| M4 前端 | ✅ 基础版：聊天 + 设备面板；视觉验收待做 |
+| M4 前端 | ✅ 聊天 + 蓝桥杯助教 + 紧凑板卡面板（下拉选灯/双 ADC/双 PWM） |
 | M5 VLM | ✅ 基础版：SmolVLM-500M，单图 34s |
 | M6 整机联调 | ✅ 30 分钟稳定性：933 次检查 / 0 失败；最高 47.2°C |
 | M7 报告与交付 | ✅ Word 报告 + 11 页 PPT + 9 张图 + 稳定性数据 |
-| M8 蓝桥杯知识库 | ✅ 1607 片段 / 464 来源；板卡/源码/课件直答 + 0.5B RAG 回退 |
+| M8 蓝桥杯知识库 | ✅ 1608 片段 / 464 来源；板卡/源码/课件直答 + 0.5B RAG 回退 |
+| M9 双通道控制 | ✅ 8 LED 下拉控制 + 全亮/全灭；ADC1(PB12)/ADC2(PB15)；PWM1(PA2)/PWM2(PA3) |
 
 ## 3. 目录
 

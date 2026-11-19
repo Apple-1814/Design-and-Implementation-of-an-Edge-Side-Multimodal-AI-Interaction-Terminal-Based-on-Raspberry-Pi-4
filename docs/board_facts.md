@@ -55,20 +55,21 @@
 - 输入模式，代码中 `GPIO_NOPULL`；板上已有外部上拉，按下读到 `GPIO_PIN_RESET`。
 - 竞赛程序必须自己做消抖（10–20ms）和“松手检测”，不要在中断里长时间延时。
 
-### 3.3 ADC（电位器）
+### 3.3 ADC（双电位器）
 
-- 已验证：**PB12 = ADC1_IN11**，12 位，单次转换，软件触发。
+- **ADC1：PB12 = ADC1_IN11**（电位器 R38），12 位，单次转换，软件触发。
+- **ADC2：PB15 = ADC2_IN15**（电位器 R37），12 位，单次转换，软件触发。
 - 采样时间：`ADC_SAMPLETIME_640CYCLES_5`；时钟 `SYSCLK` 2 分频。
 - 读取流程：`HAL_ADC_Start()` → `HAL_ADC_PollForConversion(..., 10)` → `HAL_ADC_GetValue()` → `HAL_ADC_Stop()`。
 - 返回值 0–4095，对应 0–3.3V（参考 VREF+）。
-- 产品手册中 J11/J12 还引出 PB15/PB12 电位器分压；本机验证以 **PB12** 为准。
+- 产品手册 J11/J12 分别引出 PB15/PB12 电位器分压；两路可同时使用。
 
-### 3.4 PWM（TIM15_CH1）
+### 3.4 PWM（TIM15 双通道）
 
-- 已验证：**PA2 = TIM15_CH1**；PA3 = TIM15_CH2（同一 TIM15，可选）。
+- **PWM1：PA2 = TIM15_CH1**；**PWM2：PA3 = TIM15_CH2**，两路可独立设置占空比。
 - 时钟 80MHz；`Prescaler=79` → 1MHz 计数；`Period=999` → **1kHz**。
-- 占空比：`Pulse = duty * 10`，duty=0–100 对应 0–1000；`PWM_SetDuty()` 已做 100 上限保护。
-- 输出模式：PWM1，高电平有效；PA2 复用 `GPIO_AF9_TIM15`，`GPIO_MODE_AF_PP`。
+- 占空比：`Pulse = duty * 10`，duty=0–100 对应 0–1000；`PWM_SetDuty()` / `PWM_SetDuty2()` 已做 100 上限保护。
+- 输出模式：PWM1，高电平有效；PA2/PA3 复用 `GPIO_AF9_TIM15`，`GPIO_MODE_AF_PP`。
 - 易错点：只初始化 TIM 而不 `HAL_TIM_PWM_Start()`，PA2 没有波形；改频率要同时改 PSC/ARR。
 
 ### 3.5 USART1（板载 DAPLink 虚拟串口）

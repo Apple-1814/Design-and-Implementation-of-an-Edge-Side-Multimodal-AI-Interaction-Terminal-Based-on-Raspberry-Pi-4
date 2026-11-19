@@ -20,6 +20,7 @@ static char s_line[CMD_LINE_SIZE];
 static uint16_t s_line_len = 0u;
 static uint8_t s_led_state = 0u;
 static uint8_t s_pwm_duty = 0u;
+static uint8_t s_pwm_duty2 = 0u;
 
 static void cmd_send(const char *text)
 {
@@ -119,9 +120,21 @@ static void cmd_parse(char *line)
         return;
     }
 
+    if (strcmp(line, "ADC2?") == 0)
+    {
+        cmd_sendf("OK ADC2 %u\n", (unsigned int)getADC2());
+        return;
+    }
+
     if (strcmp(line, "PWM?") == 0)
     {
         cmd_sendf("OK PWM 1 %u\n", (unsigned int)s_pwm_duty);
+        return;
+    }
+
+    if (strcmp(line, "PWM2?") == 0)
+    {
+        cmd_sendf("OK PWM 2 %u\n", (unsigned int)s_pwm_duty2);
         return;
     }
 
@@ -130,13 +143,21 @@ static void cmd_parse(char *line)
         int duty;
         if (sscanf(line, "PWM %d %d", &ch, &duty) == 2)
         {
-            if (ch != 1 || duty < 0 || duty > 100)
+            if ((ch != 1 && ch != 2) || duty < 0 || duty > 100)
             {
                 cmd_send("ERR PWM_ARG\n");
                 return;
             }
-            PWM_SetDuty((uint8_t)duty);
-            s_pwm_duty = (uint8_t)duty;
+            if (ch == 1)
+            {
+                PWM_SetDuty((uint8_t)duty);
+                s_pwm_duty = (uint8_t)duty;
+            }
+            else
+            {
+                PWM_SetDuty2((uint8_t)duty);
+                s_pwm_duty2 = (uint8_t)duty;
+            }
             cmd_sendf("OK PWM %d %d\n", ch, duty);
             return;
         }

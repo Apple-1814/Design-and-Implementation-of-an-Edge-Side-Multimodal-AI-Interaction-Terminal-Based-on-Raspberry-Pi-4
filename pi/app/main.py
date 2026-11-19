@@ -21,7 +21,7 @@ from .knowledge import build_messages, kb
 from .serial_service import SerialService
 from .tool_router import route_tool
 
-APP_VERSION = "0.6.0"
+APP_VERSION = "0.7.0"
 LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
 VLM_URL = "http://127.0.0.1:8081/v1/chat/completions"
 
@@ -38,7 +38,7 @@ serial_svc = SerialService()
 
 @app.on_event("startup")
 def startup_load_knowledge() -> None:
-    # 1607 chunks tokenise in about a second on the Pi; keep startup
+    # 1608 chunks tokenise in about a second on the Pi; keep startup
     # deterministic so the first question already has retrieval available.
     kb.load()
 
@@ -48,13 +48,17 @@ class LedRequest(BaseModel):
     on: bool
 
 
+class LedAllRequest(BaseModel):
+    mask: int = Field(ge=0, le=255)
+
+
 class LcdRequest(BaseModel):
     line: int = Field(ge=0, le=9)
     text: str = Field(min_length=0, max_length=32)
 
 
 class PwmRequest(BaseModel):
-    ch: int = Field(ge=1, le=1)
+    ch: int = Field(ge=1, le=2)
     duty: int = Field(ge=0, le=100)
 
 
@@ -77,6 +81,22 @@ def _send(command: str, wait: float = 0.8) -> str:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
+def _led_state(response: str) -> dict:
+    mask = None
+    parts = response.split()
+    if len(parts) >= 3 and parts[0] == "OK" and parts[1] in ("LED", "LEDALL"):
+        try:
+            mask = int(parts[2], 16)
+        except ValueError:
+            mask = None
+    return {
+        "ok": mask is not None,
+        "response": response,
+        "mask": mask,
+        "states": {str(i): bool(mask & (1 << (i - 1))) for i in range(1, 9)} if mask is not None else {},
+    }
+
+
 @app.get("/api/info")
 def root() -> dict:
     return {
@@ -88,10 +108,14 @@ def root() -> dict:
             "/api/device/ping",
             "/api/device/status",
             "/api/device/led",
+            "/api/device/leds",
+            "/api/device/ledall",
             "/api/device/lcd",
             "/api/device/lcd/clear",
             "/api/device/adc",
+            "/api/device/adc?ch=2",
             "/api/device/pwm",
+            "/api/device/pwm2",
             "/api/knowledge/status",
             "/api/knowledge/search?q=LED",
         ],
@@ -151,21 +175,51 @@ def device_ping() -> dict:
 
 
 @app.get("/api/device/adc")
-def device_adc() -> dict:
-    response = _send("ADC?", wait=0.8)
+def device_adc(ch: int = 1) -> dict:
+    if ch not in (1, 2):
+        raise HTTPException(status_code=400, detail="ch must be 1 or 2")
+    command = "ADC?" if ch == 1 else "ADC2?"
+    response = _send(command, wait=0.8)
     raw = None
-    if response.startswith("OK ADC "):
+    if response.startswith("OK ADC"):
         try:
             raw = int(response.split()[2])
         except (IndexError, ValueError):
             raw = None
-    return {"ok": raw is not None, "response": response, "raw": raw}
+    voltage = round(raw * 3.3 / 4095.0, 3) if raw is not None else None
+    mv = round(raw * 3300.0 / 4095.0) if raw is not None else None
+    return {
+        "ok": raw is not None,
+        "response": response,
+        "ch": ch,
+        "raw": raw,
+        "voltage": voltage,
+        "mv": mv,
+        "pin": "PB12 / ADC1_IN11" if ch == 1 else "PB15 / ADC2_IN15",
+        "resolution": 12,
+    }
+
+
+@app.get("/api/device/leds")
+def device_leds() -> dict:
+    return _led_state(_send("LED?", wait=0.8))
 
 
 @app.post("/api/device/led")
 def device_led(req: LedRequest) -> dict:
     response = _send(f"LED {req.id} {1 if req.on else 0}", wait=0.5)
-    return {"ok": response.startswith("OK LED"), "response": response}
+    result = _led_state(_send("LED?", wait=0.5)) if response.startswith("OK LED") else _led_state(response)
+    result["ok"] = response.startswith("OK LED")
+    result["response"] = response
+    return result
+
+
+@app.post("/api/device/ledall")
+def device_ledall(req: LedAllRequest) -> dict:
+    response = _send(f"LEDALL {req.mask:02X}", wait=0.8)
+    result = _led_state(response)
+    result["ok"] = response.startswith("OK LEDALL")
+    return result
 
 
 @app.post("/api/device/lcd")
@@ -181,10 +235,55 @@ def device_lcd_clear() -> dict:
     return {"ok": response.startswith("OK LCDCLR"), "response": response}
 
 
+@app.get("/api/device/pwm")
+def device_pwm_status() -> dict:
+    response = _send("PWM?", wait=0.8)
+    duty = None
+    if response.startswith("OK PWM "):
+        try:
+            duty = int(response.split()[3])
+        except (IndexError, ValueError):
+            duty = None
+    return {
+        "ok": duty is not None,
+        "response": response,
+        "ch": 1,
+        "duty": duty,
+        "frequency_hz": 1000,
+        "pin": "PA2 / TIM15_CH1",
+    }
+
+
+@app.get("/api/device/pwm2")
+def device_pwm2_status() -> dict:
+    response = _send("PWM2?", wait=0.8)
+    duty = None
+    if response.startswith("OK PWM 2 "):
+        try:
+            duty = int(response.split()[3])
+        except (IndexError, ValueError):
+            duty = None
+    return {
+        "ok": duty is not None,
+        "response": response,
+        "ch": 2,
+        "duty": duty,
+        "frequency_hz": 1000,
+        "pin": "PA3 / TIM15_CH2",
+    }
+
+
 @app.post("/api/device/pwm")
 def device_pwm(req: PwmRequest) -> dict:
     response = _send(f"PWM {req.ch} {req.duty}", wait=0.5)
-    return {"ok": response.startswith("OK PWM"), "response": response}
+    return {
+        "ok": response.startswith("OK PWM"),
+        "response": response,
+        "ch": req.ch,
+        "duty": req.duty,
+        "frequency_hz": 1000,
+        "pin": "PA2 / TIM15_CH1" if req.ch == 1 else "PA3 / TIM15_CH2",
+    }
 
 
 @app.post("/api/chat")

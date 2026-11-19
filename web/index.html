@@ -76,10 +76,25 @@
       </div>
 
       <div class="control-group">
-        <label>LED</label>
+        <label>LED <span class="value" id="ledMask">00</span></label>
+        <div class="compact-row">
+          <select id="ledSelect" class="compact-select">
+            <option value="1">LD1</option>
+            <option value="2">LD2</option>
+            <option value="3">LD3</option>
+            <option value="4">LD4</option>
+            <option value="5">LD5</option>
+            <option value="6">LD6</option>
+            <option value="7">LD7</option>
+            <option value="8">LD8</option>
+          </select>
+          <button id="ledOn">开</button>
+          <button id="ledOff">关</button>
+        </div>
         <div class="row">
-          <button data-led="1" data-on="1">LED1 开</button>
-          <button data-led="1" data-on="0">LED1 关</button>
+          <button id="ledAllOn">全亮</button>
+          <button id="ledAllOff">全灭</button>
+          <button id="ledRefresh">回读</button>
         </div>
       </div>
 
@@ -93,17 +108,54 @@
       </div>
 
       <div class="control-group">
-        <label>ADC（PB12 电位器）</label>
+        <label>ADC 双通道</label>
+        <div class="channel-block">
+          <div class="channel-head">
+            <span>ADC1 · PB12</span>
+            <button class="mini-btn" id="adc1Read">读取</button>
+          </div>
+          <div class="channel-metrics">
+            <span id="adc1Value">--</span>
+            <span id="adc1Voltage">-- V</span>
+          </div>
+        </div>
+        <div class="channel-block">
+          <div class="channel-head">
+            <span>ADC2 · PB15</span>
+            <button class="mini-btn" id="adc2Read">读取</button>
+          </div>
+          <div class="channel-metrics">
+            <span id="adc2Value">--</span>
+            <span id="adc2Voltage">-- V</span>
+          </div>
+        </div>
         <div class="row">
-          <button id="adcRead">读取</button>
-          <span class="value" id="adcValue">--</span>
+          <label class="check"><input type="checkbox" id="adcAuto"> 自动刷新</label>
         </div>
       </div>
 
       <div class="control-group">
-        <label>PWM 占空比 <span class="value" id="pwmValue">0%</span></label>
-        <input type="range" id="pwmRange" min="0" max="100" value="0">
-        <button id="pwmApply">应用到 PA2</button>
+        <label>PWM 双通道 <span class="value" id="pwmSummary">0% / 0%</span></label>
+        <div class="channel-block">
+          <div class="channel-head">
+            <span>PWM1 · PA2</span>
+            <span class="channel-val" id="pwm1Value">0%</span>
+          </div>
+          <input type="range" id="pwm1Range" min="0" max="100" value="0">
+        </div>
+        <div class="channel-block">
+          <div class="channel-head">
+            <span>PWM2 · PA3</span>
+            <span class="channel-val" id="pwm2Value">0%</span>
+          </div>
+          <input type="range" id="pwm2Range" min="0" max="100" value="0">
+        </div>
+        <div class="row">
+          <button id="pwmApply">应用两路</button>
+          <button id="pwmRead">回读</button>
+          <span class="metric" id="pwmReadback">--</span>
+        </div>
+        <div class="hint-inline">TIM15_CH1/CH2 · 固定 1kHz · 0–100%</div>
       </div>
 
       <div class="panel-log" id="panelLog"></div>
