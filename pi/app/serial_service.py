@@ -30,6 +30,13 @@ def _wifi_ip() -> Optional[str]:
     return None
 
 
+def _system_uptime() -> float:
+    try:
+        return float(Path("/proc/uptime").read_text(encoding="ascii").split()[0])
+    except Exception:
+        return 0.0
+
+
 class SerialService:
     def __init__(self, port: str = "/dev/ttyACM0", baud: int = 9600) -> None:
         self.port = port
@@ -70,20 +77,23 @@ class SerialService:
         try:
             while True:
                 if self._open():
-                    # Only the first open after service start may overwrite the
-                    # LCD with the demo banner.  A reconnect must not wipe a
-                    # student's LCD content with READY.
-                    if self.banner_count == 0:
+                    # Only the first open shortly after boot may overwrite the
+                    # LCD with the demo banner.  A reconnect or a service
+                    # restart must not wipe a student's LCD content.
+                    if self.banner_count == 0 and _system_uptime() < 180:
                         try:
                             self.command("LCDCLR", wait=1.2)
                             self.command(f"LCD 1 {self.demo_ip}", wait=0.8)
                             self.command("LCD 2 READY", wait=0.8)
                             self.banner_count += 1
-                            self._log("LCD banner sent")
+                            self._log("LCD banner sent (boot)")
                         except Exception as exc:
                             self._log(f"LCD banner failed: {exc}")
                     else:
-                        self._log("REOPEN: skip LCD banner")
+                        self._log(
+                            f"skip LCD banner (banner_count={self.banner_count}, "
+                            f"uptime={_system_uptime():.0f}s)"
+                        )
                     break
                 time.sleep(2.0)
         finally:

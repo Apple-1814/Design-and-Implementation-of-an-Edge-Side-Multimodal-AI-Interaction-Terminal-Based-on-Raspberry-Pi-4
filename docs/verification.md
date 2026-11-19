@@ -150,9 +150,10 @@
 | 项 | 操作 | 结果 |
 |---|---|---|
 | 根因 | 串口服务每次打开/重连都发送 `LCDCLR` + IP + `READY` 横幅 | 队友显示内容被覆盖 |
-| 修复 | 横幅只在服务首次打开时发送；重连不再覆盖 LCD | `banner_count=1` |
-| 重连测试 | LCD TEST1 → `/api/device/reconnect` → LCD TEST2 | 日志 `REOPEN: skip LCD banner`；TEST2 保留 |
+| 修复 | 横幅只在开机后 180s 内首次打开时发送；重连/服务重启不再覆盖 LCD | `banner_count=0`（晚启动时） |
+| 重连测试 | LCD TEST1 → `/api/device/reconnect` → LCD TEST2 | 日志 `skip LCD banner`；TEST2 保留 |
 | 并发测试 | 6 个客户端同时 POST `/api/device/lcd` | 6/6 `OK LCD`；`open_count` 不变 |
+| 队友实测 | 日志 `LCD 1 stupid xyp` → `OK LCD`；随后服务重启 | `uptime=12178s`，日志 `skip LCD banner`，不再覆盖 |
 | 诊断字段 | `/api/device/status` | `open_count`、`banner_count`、`last_open_at` |
 | 串口日志 | `~/ai-terminal/logs/serial.log` | 记录 OPEN/命令/响应/横幅 |
 
