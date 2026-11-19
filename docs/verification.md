@@ -76,7 +76,7 @@
 | 首页 | `GET /` | 返回 `index.html` |
 | 静态资源 | `GET /app.js`、`/style.css` | 200 |
 | 功能 | 流式聊天、会话列表、设备面板、图片上传 | 已实现 |
-| 视觉验收 | 浏览器截图 | 待用户/浏览器验收 |
+| 视觉验收 | 浏览器 DOM + 截图 | DOM 通过（快捷问题/来源卡片/硬件命令）；截图 API 超时，视觉截图待补 |
 
 ### M5 VLM（基础验证）
 
@@ -105,11 +105,28 @@
 
 | 项 | 产物 | 结果 |
 |---|---|---|
-| Word 报告 | `paper/课程设计报告.docx` | 477KB，封面 + 7 表 + 9 图 |
-| 答辩 PPT | `paper/答辩PPT.pptx` | 10 页 |
+| Word 报告 | `paper/课程设计报告.docx` | 478KB，封面 + 7 表 + 9 图 |
+| 答辩 PPT | `paper/答辩PPT.pptx` | 11 页 |
 | 插图 | `paper/figures/*.png` | 系统框图/电源树/接线/3 张流程/UART/PWM/UI 示意 |
 | 30 分钟稳定性 | `scripts/stability_test.py` | 进行中（硬件/LLM 已连续通过） |
 | 最终交付包 | 源码、固件、报告、PPT、复现说明 | 待最终提交 |
+
+### M8 蓝桥杯知识库（2026-11-19）
+
+| 项 | 命令/操作 | 结果 |
+|---|---|---|
+| 构建 | `python scripts/build_knowledge.py` | 1606 片段 / 464 来源 / 2,624,356 chars |
+| 覆盖 | PPT/PDF/DOCX/XLSX/源码压缩包 | 37 PPT、3 PDF、3 DOCX、3 XLSX、51 个源码包；过滤 HAL/CMSIS/构建产物 |
+| 索引 | `knowledge/chunks.jsonl` + `manifest.json` | 3.5MB JSONL；sha256 见 manifest |
+| 加载 | `GET /api/knowledge/status` | loaded=true；kinds: board 18 / code 920 / ioc 138 / ppt 66 / pdf 447 / docx 3 / xlsx 14 |
+| 检索 | `GET /api/knowledge/search?q=LED怎么点亮` | 约 3ms；板卡事实卡 3.1 + 本机 `bsp_led.c` |
+| 冒烟测试 | `python scripts/test_knowledge.py` | 9 个问答 PASS + 范围外 PASS |
+| 直答 | `POST /api/chat` LED/I2C/PWM/USART/LCD | **0.04s**；`mode=knowledge`；2 条来源 |
+| 课件直答 | `POST /api/chat` NVIC/输入捕获 | **0.05s**；PPT 摘录 / 代码+PPT |
+| 范围提示 | `POST /api/chat` “树莓派是什么” | **0.03s**；`mode=scope`，不调用模型 |
+| 硬件分流 | 前端“让 LED1 亮起来” | `OK LED 1 1`；随后“LED1 关”恢复 |
+| 前端 DOM | 浏览器打开 `/`、快捷问题、来源卡片 | 通过；截图 API 30s 超时，未取得视觉截图 |
+| 知识库排除 | `git status` / `.gitignore` | `knowledge/` 已忽略，不入库 |
 
 ### 已知现象
 
@@ -131,7 +148,8 @@ sudo sh -c 'echo 0 > /sys/bus/usb/devices/1-1.1/authorized; sleep 1; echo 1 > /s
 | M1b | ADC/PWM 命令 | **已验证（串口）**；PWM 物理波形/电位器变化待 HIL |
 | M2 | FastAPI 持久串口服务、`/api/device` | **已验证** |
 | M3 | llama.cpp + Qwen2.5-0.5B/1.5B benchmark | **已验证**：Qwen2.5-0.5B 7.26 tok/s |
-| M4 | 前端聊天 UI | 基础版已验证；视觉验收待做 |
+| M4 | 前端聊天 UI | DOM 验证通过；视觉截图待补 |
 | M5 | SmolVLM 上传图片问答 | **基础验证**：单图 34.11s，返回 `HELLO` |
 | M6 | 整机联调 30 分钟稳定性 | **已验证**：933 次检查 / 0 失败；最高 47.2°C |
 | M7 | 报告、图表、演示、PPT | **Word/PPT/图表/稳定性数据已完成** |
+| M8 | 蓝桥杯知识库/RAG/助教前端 | **已验证**：1606 片段；直答 0.04s；模型回退 20–35s |

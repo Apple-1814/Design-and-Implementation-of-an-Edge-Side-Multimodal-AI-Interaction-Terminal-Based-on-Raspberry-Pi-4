@@ -1,0 +1,8 @@
+# PC-side dependencies for scripts/build_knowledge.py
+# Install with: python -m pip install -r scripts/requirements-knowledge.txt
+PyMuPDF>=1.24
+olefile>=0.47
+python-docx>=1.1
+openpyxl>=3.1
+# Optional OCR (only for --ocr-docx)
+# rapidocr_onnxruntime>=1.3

@@ -93,17 +93,85 @@ function renderMarkdown(raw) {
   return text || "<p>（空）</p>";
 }
 
+const KIND_LABEL = {
+  board: "板卡实测",
+  code: "源码",
+  ioc: "CubeMX",
+  ppt: "课件",
+  pdf: "文档",
+  xlsx: "考点统计",
+  docx: "真题目录",
+  exam_ocr: "真题 OCR",
+};
+
+function sourceNode(source) {
+  const details = document.createElement("details");
+  details.className = "source-item";
+
+  const summary = document.createElement("summary");
+  const n = document.createElement("span");
+  n.className = "source-n";
+  n.textContent = `[${source.n || "?"}]`;
+  const label = document.createElement("span");
+  label.textContent = source.label || source.title || "资料";
+  const kind = document.createElement("span");
+  kind.className = "source-kind";
+  kind.textContent = KIND_LABEL[source.kind] || source.kind || "资料";
+  summary.appendChild(n);
+  summary.appendChild(label);
+  summary.appendChild(kind);
+
+  const snippet = document.createElement("p");
+  snippet.className = "source-snippet";
+  snippet.textContent = source.snippet || "";
+  const path = document.createElement("div");
+  path.className = "source-path";
+  path.textContent = source.source || "";
+
+  details.appendChild(summary);
+  details.appendChild(snippet);
+  details.appendChild(path);
+  return details;
+}
+
+function sourcesNode(sources, knowledge, mode) {
+  const wrap = document.createElement("div");
+  wrap.className = "sources";
+  const head = document.createElement("div");
+  head.className = "sources-head";
+  const hits = sources?.length || 0;
+  const total = knowledge?.chunks ? ` · 知识库 ${knowledge.chunks} 片段` : "";
+  const modeLabel = mode === "knowledge" ? "知识库直答 · " : mode === "rag" ? "RAG 生成 · " : "";
+  head.innerHTML = `${escapeHtml(modeLabel)}参考资料 <b>${hits}</b> 条${escapeHtml(total)}`;
+  wrap.appendChild(head);
+  (sources || []).forEach((s) => wrap.appendChild(sourceNode(s)));
+  return wrap;
+}
+
+function renderAssistantInto(bubble, msg) {
+  bubble.innerHTML = msg.content
+    ? renderMarkdown(msg.content)
+    : '<p class="thinking">正在检索资料并生成回答…</p>';
+  if (msg.sources?.length) {
+    bubble.appendChild(sourcesNode(msg.sources, msg.knowledge, msg.mode));
+  }
+}
+
 function messageNode(msg) {
   const wrap = document.createElement("div");
   wrap.className = "msg " + (msg.role === "user" ? "user" : "assistant");
 
   const avatar = document.createElement("div");
   avatar.className = "avatar";
-  avatar.textContent = msg.role === "user" ? "你" : "AI";
+  avatar.textContent = msg.role === "user" ? "你" : "蓝";
 
   const bubble = document.createElement("div");
   bubble.className = "bubble";
-  bubble.innerHTML = renderMarkdown(msg.content);
+  if (msg.role === "assistant") {
+    renderAssistantInto(bubble, msg);
+  } else {
+    bubble.innerHTML = renderMarkdown(msg.content);
+  }
   if (msg.image) {
     const img = document.createElement("img");
     img.src = msg.image;
@@ -123,10 +191,20 @@ function renderMessages() {
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.innerHTML = `
-      <h1>本地多模态 AI 终端</h1>
-      <p>树莓派 4B · Qwen2.5-0.5B · STM32G431</p>
-      <p>试试：让 LED1 亮起来 / 在 LCD 上显示 Hello / 读取 ADC</p>
-      <p>也可以点击左下角图片按钮，上传图片问答。</p>
+      <h1>蓝桥杯嵌入式 AI 助教</h1>
+      <p>专精 CT117E-M4 · STM32G431RBT6 · 本地知识库 + 本地模型</p>
+      <p>从引脚、外设、代码到历年真题，按“结论 → 步骤 → 易错点”回答。</p>
+      <div class="quick-grid">
+        <button data-quick="CT117E-M4 怎么快速入门？"><span>入门路线</span>CT117E-M4 怎么快速入门？</button>
+        <button data-quick="LED 怎么点亮？PC8–PC15 和 PD2 怎么配置？"><span>GPIO / LED</span>LED 怎么点亮？PC8–PC15 和 PD2 怎么配置？</button>
+        <button data-quick="USART1 串口怎么配置？为什么收不到数据？"><span>串口</span>USART1 串口怎么配置？为什么收不到数据？</button>
+        <button data-quick="LCD 怎么显示字符串？"><span>LCD</span>LCD 怎么显示字符串？</button>
+        <button data-quick="PWM 怎么输出 1kHz、50% 占空比？"><span>TIM / PWM</span>PWM 怎么输出 1kHz、50% 占空比？</button>
+        <button data-quick="I2C 读写 AT24C02 怎么写？"><span>I2C / EEPROM</span>I2C 读写 AT24C02 怎么写？</button>
+        <button data-quick="省赛真题一般考哪些模块？"><span>备考</span>省赛真题一般考哪些模块？</button>
+        <button data-quick="按键消抖和松手检测怎么写？"><span>按键</span>按键消抖和松手检测怎么写？</button>
+      </div>
+      <p class="empty-note">也可以直接说“让 LED1 亮起来”“在 LCD 上显示 Hello”，助手会执行硬件命令。</p>
     `;
     messagesEl.appendChild(empty);
     return;
@@ -145,6 +223,7 @@ function addMessage(role, content, image) {
   }
   saveSessions();
   renderSessions();
+  messagesEl.querySelector(".empty")?.remove();
   messagesEl.appendChild(messageNode(msg));
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return msg;
@@ -234,7 +313,7 @@ async function sendMessage() {
     .slice(-12)
     .map((m) => ({ role: m.role, content: m.content }));
 
-  const assistant = { role: "assistant", content: "" };
+  const assistant = { role: "assistant", content: "", sources: [], knowledge: null, mode: null };
   session.messages.push(assistant);
   const node = messageNode(assistant);
   messagesEl.appendChild(node);
@@ -250,7 +329,12 @@ async function sendMessage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: state.controller.signal,
-      body: JSON.stringify({ messages: history, max_tokens: 192, temperature: 0.7 }),
+      body: JSON.stringify({
+        messages: history,
+        max_tokens: 192,
+        temperature: 0.3,
+        use_knowledge: true,
+      }),
     });
     if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
 
@@ -270,6 +354,12 @@ async function sendMessage() {
         if (data === "[DONE]") continue;
         try {
           const json = JSON.parse(data);
+          if (json.sources) {
+            assistant.sources = json.sources;
+            assistant.knowledge = json.knowledge || assistant.knowledge;
+            assistant.mode = json.mode || assistant.mode;
+            saveSessions();
+          }
           if (json.error) {
             assistant.content += `\n\n> 错误：${json.error}`;
           } else {
@@ -278,7 +368,7 @@ async function sendMessage() {
         } catch {
           /* ignore partial JSON */
         }
-        bubble.innerHTML = renderMarkdown(assistant.content);
+        renderAssistantInto(bubble, assistant);
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
     }
@@ -288,7 +378,8 @@ async function sendMessage() {
     }
   } finally {
     bubble.classList.remove("typing");
-    bubble.innerHTML = renderMarkdown(assistant.content || "（无响应）");
+    if (!assistant.content) assistant.content = "（无响应）";
+    renderAssistantInto(bubble, assistant);
     state.streaming = false;
     state.controller = null;
     sendBtn.disabled = false;
@@ -320,7 +411,48 @@ async function refreshStatus() {
   }
 }
 
+async function refreshKnowledge() {
+  try {
+    const resp = await fetch("/api/knowledge/status");
+    const data = await resp.json();
+    const ok = !!data.loaded && data.chunks > 0;
+    const pill = $("#kbPill");
+    const panel = $("#kbStatus");
+    const foot = $("#kbFoot");
+    if (pill) {
+      pill.textContent = ok
+        ? `知识库 ${data.chunks} 片段`
+        : (data.error ? "知识库未加载" : "知识库加载中…");
+      pill.className = "kb-pill" + (ok ? "" : " bad");
+    }
+    if (panel) {
+      panel.textContent = ok
+        ? `已加载 ${data.chunks} 个片段 · ${data.sources} 个来源 · 支持板卡、引脚、代码与真题检索`
+        : (data.error || "知识库加载中…");
+    }
+    if (foot) {
+      foot.textContent = ok
+        ? `本地知识库 · ${data.chunks} 片段 / ${data.sources} 来源`
+        : "本地知识库未加载";
+    }
+  } catch {
+    const pill = $("#kbPill");
+    if (pill) {
+      pill.textContent = "知识库离线";
+      pill.className = "kb-pill bad";
+    }
+  }
+}
+
 /* ---------- events ---------- */
+messagesEl.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-quick]");
+  if (!btn || state.streaming) return;
+  inputEl.value = btn.dataset.quick || "";
+  autoResize();
+  sendMessage();
+});
+
 sendBtn.addEventListener("click", sendMessage);
 
 inputEl.addEventListener("keydown", (e) => {
@@ -409,4 +541,6 @@ $("#imageClear").addEventListener("click", clearPendingImage);
 
 loadSessions();
 refreshStatus();
+refreshKnowledge();
 setInterval(refreshStatus, 5000);
+setInterval(refreshKnowledge, 30000);

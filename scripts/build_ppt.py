@@ -102,11 +102,11 @@ def main():
     s = prs.slides.add_slide(prs.slide_layouts[6])
     bg(s)
     textbox(s, 0.8, 1.7, 11.8, 0.6, "《嵌入式系统综合设计》课程设计", 26, True, ACCENT)
-    textbox(s, 0.8, 2.4, 11.8, 1.8,
-            "基于树莓派 4B 与 STM32G431 的\n端侧多模态 AI 交互终端设计与实现",
-            34, True, TEXT)
+    textbox(s, 0.8, 2.4, 11.8, 2.0,
+            "基于树莓派 4B 与 STM32G431 的\n端侧多模态 AI 交互终端\n——蓝桥杯 CT117E-M4 专用 AI 助教",
+            30, True, TEXT)
     textbox(s, 0.8, 4.7, 11.8, 0.5,
-            "本地 LLM / VLM · Web 聊天 · UART 硬件控制", 20, False, MUTED)
+            "本地 LLM / VLM · 蓝桥杯知识库 RAG · Web 聊天 · UART 硬件控制", 20, False, MUTED)
     textbox(s, 0.8, 5.9, 11.8, 0.5,
             "答辩人：________    组员：________    指导教师：________    2026 年 11 月",
             14, False, MUTED)
@@ -120,6 +120,7 @@ def main():
         "目标：在树莓派 4B 上离线运行 Qwen2.5-0.5B 与 SmolVLM-500M",
         "通过 Web 聊天界面把自然语言转成 STM32 的硬件动作",
         "形成「语言 → 命令 → 执行 → 回读」的端到端闭环",
+        "扩展为蓝桥杯 CT117E-M4 专用 AI 助教：板卡/外设/代码/真题",
     ])
 
     # 3 architecture
@@ -185,12 +186,35 @@ def main():
         "设备面板：LED/LCD/ADC/PWM",
         "图片上传 → /api/vision",
         "规则路由优先：中文指令直接执行",
-        "未命中再交给本地 LLM",
+        "知识库直答 + 资料来源卡片",
+        "开放问题再交给本地 LLM",
     ], 14)
 
-    # 8 verification
+    # 8 knowledge base
     s = prs.slides.add_slide(prs.slide_layouts[6])
-    title_bar(s, "验证结果", 8)
+    title_bar(s, "蓝桥杯知识库 RAG", 8)
+    textbox(s, 0.8, 1.35, 11.8, 0.6, "1606 个片段 · 464 个来源 · 2.62MB 文本", 26, True, GREEN)
+    bullets(s, 0.8, 2.2, 5.7, 4.4, [
+        "资料：章节 PPT、产品手册、实训指导书",
+        "真题汇编目录、考点统计、官方/历年源码",
+        "本机验证固件 + CT117E-M4 板卡事实卡",
+        "中文 bigram + ASCII 标识符 + 同义词 BM25",
+        "板卡/本机固件加权，旧平台内容降权",
+    ], 16)
+    bullets(s, 6.7, 2.2, 5.8, 4.4, [
+        "硬件命令 → 规则路由（不经 LLM）",
+        "板卡/源码/课件 → 直答 0.04s + 来源",
+        "开放技术问题 → 0.5B RAG（20–35s）",
+        "完全未命中 → 0.03s 范围提示",
+        "前端显示“知识库直答/RAG 生成”",
+    ], 16)
+    textbox(s, 0.8, 6.6, 11.8, 0.4,
+            "结论：高频板卡问题毫秒级回答；小模型只处理开放问题，避免长上下文拖慢演示",
+            14, False, MUTED, PP_ALIGN.CENTER)
+
+    # 9 verification
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    title_bar(s, "验证结果", 9)
     bullets(s, 0.8, 1.4, 11.8, 5.4, [
         "CMSIS-DAP 烧录 + 原固件备份成功；Keil 0 error / 0 warning",
         "UART 9600 双向：PING → OK PONG；LED 闪 5 下",
@@ -198,28 +222,30 @@ def main():
         "ADC 读回 1759；PWM 0/50/100% 回读一致",
         "自然语言：「让 LED1 亮起来」「LCD 显示 Hello」「读取 ADC」「PWM 50」均执行",
         "LLM 7.26 tok/s；VLM 单图 34.11 s；30 分钟稳定性 933 次检查 / 0 失败（最高 47.2°C）",
+        "知识库：1606 片段；LED/I2C/PWM/USART/LCD 直答 0.04s，附来源",
         "systemd 开机自启：上电后约 22 秒 API 上线（LCD 显示 IP/READY）",
-    ], 18)
+    ], 17)
 
-    # 9 shortcomings
+    # 10 shortcomings
     s = prs.slides.add_slide(prs.slide_layouts[6])
-    title_bar(s, "不足与改进", 9)
+    title_bar(s, "不足与改进", 10)
     bullets(s, 0.8, 1.4, 11.8, 5.4, [
         "板载 VCP 仅 9600，且烧录后可能写阻塞 → USB-TTL/GPIO UART",
         "小模型能力有限 → 1.5B/3B、RAG、端云协同",
         "VLM 单图 34s → 更强 VLM、NPU 加速、图片预处理",
         "无摄像头 → Camera Module 3 / USB 摄像头",
         "规则路由优先 → 结构化 function calling / GBNF",
+        "知识库真题截图未 OCR → 后续 OCR/人工整理题面",
         "Proteus 无法仿真 Pi/LLM → 实测波形 + 明确边界",
-    ], 17)
+    ], 16)
 
-    # 10 summary
+    # 11 summary
     s = prs.slides.add_slide(prs.slide_layouts[6])
     bg(s)
     textbox(s, 0.8, 2.0, 11.8, 0.8, "总结", 38, True, ACCENT)
     textbox(s, 0.8, 3.0, 11.8, 2.4,
             "完成端侧多模态 AI 交互终端的全链路实现：\n"
-            "本地 LLM/VLM + Web 聊天 + STM32 硬件控制 + 可复现烧录/验证。",
+            "本地 LLM/VLM + 蓝桥杯知识库 RAG + Web 聊天 + STM32 硬件控制。",
             24, False, TEXT)
     textbox(s, 0.8, 5.8, 11.8, 0.6, "谢谢！请各位老师批评指正", 26, True, GREEN)
 

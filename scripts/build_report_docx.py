@@ -148,7 +148,7 @@ def main():
     doc.add_paragraph()
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = p.add_run("基于树莓派 4B 与 STM32G431 的\n端侧多模态 AI 交互终端设计与实现")
+    run = p.add_run("基于树莓派 4B 与 STM32G431 的\n端侧多模态 AI 交互终端设计与实现\n——蓝桥杯 CT117E-M4 专用 AI 助教")
     set_cn_font(run, "黑体", 18, True)
     for _ in range(3):
         doc.add_paragraph()

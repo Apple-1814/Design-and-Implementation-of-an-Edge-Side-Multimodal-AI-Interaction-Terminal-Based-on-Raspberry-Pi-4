@@ -33,6 +33,9 @@ dist/
 *.bin
 models/
 
+# 知识库索引（由外部教程构建，不上传）
+knowledge/
+
 # Keil / MDK 构建产物
 firmware/MDK-ARM/**/Objects/
 firmware/MDK-ARM/**/Listings/

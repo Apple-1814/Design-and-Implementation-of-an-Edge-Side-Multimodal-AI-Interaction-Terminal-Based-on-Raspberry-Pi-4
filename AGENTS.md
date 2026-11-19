@@ -5,8 +5,8 @@
 ## 项目定位
 
 - **课程**：《嵌入式系统综合设计》课程设计，2 周，8–10 人一组。
-- **题目方向**：基于树莓派 4B + STM32G431 的边缘多模态 AI 交互终端。
-- **目标**：浏览器里的类 DeepSeek 聊天界面 → 树莓派本地 LLM/VLM 推理 → 通过 UART 命令或 ST-Link 烧录控制 STM32G431 开发板。
+- **题目方向**：基于树莓派 4B + STM32G431 的边缘多模态 AI 交互终端，并扩展为**蓝桥杯 CT117E-M4 专用 AI 助教**。
+- **目标**：浏览器里的类 DeepSeek 聊天界面 → 树莓派本地 LLM/VLM 推理 + 本地知识库 RAG → 通过 UART 命令控制 STM32G431 开发板；同时回答板卡、外设、代码与真题问题。
 - **课程报告要求**：概述与背景、进度与分工、主要电子元件及个数、电路图与仿真结果、程序流程图、作品演示、不足与改进、实验总结、参考文献；第四、六点必须附图。
 
 ## 行为准则
@@ -26,27 +26,37 @@
 | 部件 | 型号/规格 | 状态 |
 |---|---|---|
 | 边缘计算 | 树莓派 4B Rev 1.5，8GB，Ubuntu 20.04 | 已实测 |
-| 实时控制 | 蓝桥杯 CT117E-M4（STM32G431RBT6，LQFP64） | 已确认 |
-| 调试/烧录 | **Keil CMSIS-DAP（VID:PID `c251:f001`）**，USB 接 Pi，`/dev/ttyACM0` | 探针已识别；SWD 待电源修复后复测 |
+| 实时控制 | 蓝桥杯 CT117E-M4（STM32G431RBT6，LQFP64） | 已实测 |
+| 调试/烧录 | **Keil CMSIS-DAP（VID:PID `c251:f001`）**，USB 接 Pi，`/dev/ttyACM0` | **已验证**：pyOCD 烧录、9600 UART 双向 |
 | 视觉 | 当前无摄像头；VLM 用网页上传图片 | 已确认 |
-| 人机交互 | 5 寸 HDMI 触摸屏（可选）、USB 麦克风/喇叭（选做） | 待确认 |
-| 传感器/执行器 | DHT11、BH1750、LED、风扇/继电器 | 待确认 |
+| 人机交互 | 浏览器；5 寸 HDMI 触摸屏（可选） | 浏览器已验证 |
+| 传感器/执行器 | 板载 LED、按键、LCD、电位器、EEPROM、PWM | 已接入 |
 
 ### 软件
 
 | 层 | 选型 | 状态 |
 |---|---|---|
-| 固件 | C + STM32CubeG4 HAL，Keil MDK 5（例程为 `MDK-ARM V5`） | 已确认 |
-| 烧录 | 树莓派上 **pyOCD + Keil STM32G4 DFP**，经 CMSIS-DAP SWD；PC Keil 兜底 | 探针已识别，SWD 待复测 |
-| 推理 | llama.cpp（GGUF Q4），Qwen2.5-0.5B/1.5B，SmolVLM-500M | 待 benchmark |
-| 后端 | Python 3.8 + FastAPI + uvicorn + pyserial + SQLite | 已定方向；需固定兼容 3.8 的版本 |
-| 前端 | PC 构建 Vue 3 + Vite + Tailwind，Pi 静态托管；无构建 HTML 兜底 | 推荐 |
-| 通信 | 浏览器 ⇄ Pi：HTTP/SSE；Pi ⇄ STM32：UART 115200，换行 JSON 或带 CRC 帧 | 已定方向 |
+| 固件 | C + STM32CubeG4 HAL，Keil MDK 5（例程为 `MDK-ARM V5`） | 已验证 0 error / 0 warning |
+| 烧录 | 树莓派上 **pyOCD + Keil STM32G4 DFP**，经 CMSIS-DAP SWD；PC Keil 兜底 | 已验证 |
+| 推理 | llama.cpp（GGUF Q4/Q8），Qwen2.5-0.5B，SmolVLM-500M | 已验证 7.26 tok/s / 34s 单图 |
+| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 + 模型回退 | 1606 片段 / 464 来源 |
+| 后端 | Python 3.8 + FastAPI + uvicorn + pyserial | 已验证 |
+| 前端 | 无构建 HTML/CSS/JS，Pi 静态托管 | 已验证 |
+| 通信 | 浏览器 ⇄ Pi：HTTP/SSE；Pi ⇄ STM32：UART 9600 8N1 行协议 | 已验证 |
 
 ### 双模式控制
 
-1. **命令模式（主）**：STM32 常驻通用固件，Pi 发送 JSON 命令（LED/LCD/PWM/ADC/蜂鸣器/传感器读取），毫秒级、不复位。
-2. **固件模式（演示）**：每个功能预编译 `.bin`，Pi 用 `st-flash` 烧录，板子复位后脱机运行；用于“拔掉树莓派也能跑”的演示。
+1. **命令模式（主，已实现）**：STM32 常驻通用固件，Pi 发送 `PING/LED/LEDALL/LCD/LCDCLR/ADC?/PWM/PWM?` 行命令，毫秒级、不复位。
+2. **固件模式（演示，已验证）**：预编译 `.hex` 经 pyOCD 烧录，板子复位后脱机运行；仅允许 `firmware/release/manifest.json` 白名单。
+
+### 知识库 RAG（已实现）
+
+- 源：`D:\BaiduNetdiskDownload\蓝桥杯嵌入式教程完整版（去加密）`（外部资料，不入 Git）。
+- 构建：`python scripts/build_knowledge.py` → `knowledge/chunks.jsonl` + `manifest.json`（`knowledge/` 已 gitignore）。
+- 内容：章节 PPT、产品手册、实训指导书、真题汇编目录、考点统计、官方模块源码、历年真题工程、本机验证固件、`docs/board_facts.md`。
+- 检索：`pi/app/knowledge.py`，中文 bigram + ASCII 标识符 + 同义词，BM25；板卡事实卡/本机固件加权。
+- 问答：`/api/chat` 先硬件规则路由；再知识库直答（板卡/源码/课件摘录，毫秒级）；未命中技术问题时才调用 0.5B，并附来源；完全未命中返回范围提示。
+- 限制：图片型真题 DOCX/OneNote 未 OCR；旧平台（F103/STC15）内容只作原理参考。
 
 ## 技能使用
 
@@ -88,13 +98,19 @@ tooling/     工具链契约、烧录/HIL 指南
 
 | # | 事项 | 影响 |
 |---|---|---|
-| 1 | **树莓派供电（Under-voltage）** | 决定 CMSIS-DAP 烧录、LLM 高负载稳定性 | 换官方 5V/3A 电源；这是当前硬阻塞 |
-| 2 | 板载 CMSIS-DAP VCP 是否接 USART1 | 决定命令模式走 `/dev/ttyACM0` 还是 USB-TTL | 烧 USART 测试固件后读串口 |
-| 3 | Pi 侧烧录是否作为课程必须项 | 决定 pyOCD 烧录是 P0 还是 P1/P2 | 电源修复后复测；PC Keil 兜底 |
-| 4 | 指导老师是否强制 Proteus 仿真/焊接/自制 PCB | 决定硬件工作量与报告“仿真结果”写法 | 先按“开发板 + 扩展板 + 关键电路仿真”准备 |
-| 5 | 前端 Vue 构建版还是无构建 HTML | 决定前端交付方式 | 推荐 PC 构建 Vue，Pi 静态托管 |
-| 6 | 最终模型组合 | 决定 Pi 内存分配与演示速度 | 先按 0.5B 路由 + 1.5B 对话 + SmolVLM-500M 选做 |
-| 7 | 8–10 人组内分工 | 决定任务拆分与报告分工表 | 按硬件/固件/模型/后端/前端/测试文档拆分 |
+| 1 | 组内分工与报告封面信息 | 报告完整性 |
+| 2 | PWM PA2 波形/ADC 电位器物理复测 | HIL 证据 |
+| 3 | 是否补拍实物照片/浏览器截图替换示意图 | 报告/答辩 |
+| 4 | 指导老师是否强制 Proteus 仿真/焊接/自制 PCB | 硬件工作量 |
+| 5 | 是否做图片型真题 OCR | 真题题面覆盖度 |
+
+## 已解决的历史决策
+
+- 供电：官方 5V/3A 电源，已消除 Under-voltage。
+- 调试器：板载 CMSIS-DAP，pyOCD 烧录已通过；不是 ST-Link。
+- 串口：板载 VCP 9600 8N1，必须 `GPIO_MODE_AF_PP`；不用 115200。
+- 前端：无构建 HTML/CSS/JS，Pi 静态托管；不再使用 Vue/Vite 方案。
+- 烧录：pyOCD + Keil DFP，只烧白名单固件；已备份原 Flash。
 
 ## 编码与命名
 

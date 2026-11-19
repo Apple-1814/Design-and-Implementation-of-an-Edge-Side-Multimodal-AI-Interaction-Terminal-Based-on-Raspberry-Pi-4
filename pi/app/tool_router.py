@@ -20,6 +20,12 @@ def route_tool(text: str, send: Callable[..., str]) -> Optional[str]:
         return None
     low = t.lower()
 
+    # Knowledge questions such as "LED1 怎么点亮" or "ADC 是什么" must go to
+    # RAG, not execute a hardware command.  Imperative requests ("让 LED1 亮
+    # 起来", "LCD 显示 Hello", "PWM 50") contain none of these markers.
+    if re.search(r"怎么|如何|为什么|为何|是什么|什么|原理|配置|代码|程序|步骤|教程|讲解|介绍|区别|吗|？|\?", t):
+        return None
+
     # LED: "LED1 开/关"、"打开 LED 2"、"关灯"
     m = re.search(r"led\s*([1-8])", low)
     if m:

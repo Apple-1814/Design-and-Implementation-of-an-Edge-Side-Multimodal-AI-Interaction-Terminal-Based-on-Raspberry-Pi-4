@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Edge AI Terminal</title>
+  <title>蓝桥杯嵌入式 AI 助教 · CT117E-M4</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">AI</div>
+        <div class="brand-mark">蓝</div>
         <div>
-          <div class="brand-title">Edge AI</div>
-          <div class="brand-sub">Raspberry Pi 4B · STM32G431</div>
+          <div class="brand-title">蓝桥杯 AI 助教</div>
+          <div class="brand-sub">CT117E-M4 · STM32G431RBT6</div>
         </div>
       </div>
       <button class="new-chat" id="newChat">＋ 新建对话</button>
@@ -22,11 +22,15 @@
         <span class="dot" id="serialDot"></span>
         <span id="serialText">串口检测中…</span>
       </div>
+      <div class="kb-foot" id="kbFoot">知识库加载中…</div>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <div class="model-pill">Qwen2.5-0.5B · 本地推理</div>
+        <div class="topbar-left">
+          <div class="model-pill">Qwen2.5-0.5B · 本地 RAG</div>
+          <div class="kb-pill" id="kbPill">知识库加载中…</div>
+        </div>
         <div class="topbar-actions">
           <button class="ghost" id="clearChat">清空当前对话</button>
         </div>
@@ -48,22 +52,27 @@
             </svg>
           </button>
           <input type="file" id="imageInput" accept="image/*" hidden>
-          <textarea id="input" rows="1" placeholder="输入问题，Enter 发送，Shift+Enter 换行"></textarea>
+          <textarea id="input" rows="1" placeholder="问板卡、外设、代码、真题…（Enter 发送，Shift+Enter 换行）"></textarea>
           <button class="send-btn" id="sendBtn" title="发送">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M4 12l16-8-6 16-3-7-7-1z"></path>
             </svg>
           </button>
         </div>
-        <div class="hint">本地推理 · 数据不出设备 · 可控制 LED / LCD / ADC / PWM</div>
+        <div class="hint">本地知识库 RAG · 回答附资料出处 · 可直接说“让 LED1 亮起来”控制板卡</div>
       </div>
     </main>
 
     <aside class="panel">
-      <h2>设备控制</h2>
+      <h2>板卡控制 · CT117E-M4</h2>
       <div class="status-line">
         <span class="dot" id="panelDot"></span>
         <span id="panelStatus">串口检测中…</span>
+      </div>
+
+      <div class="kb-card">
+        <div class="kb-card-title">知识库</div>
+        <div class="kb-card-text" id="kbStatus">加载中…</div>
       </div>
 
       <div class="control-group">

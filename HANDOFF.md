@@ -1,11 +1,11 @@
 # HANDOFF — 当前状态
 
 > 覆盖式维护，≤200 行。详细方案见 `计划书.md`。
-> 更新时间：2026-11-18 12:35
+> 更新时间：2026-11-19 19:50
 
 ## 当前阶段
 
-实测评估完成；**M1–M7 全部验证**：固件命令、M2 后端、M3 Qwen2.5-0.5B（7.26 tok/s）、M4 前端、M5 SmolVLM（34s/图）、M6 30 分钟稳定性（**933 次检查 / 0 失败**，最高 47.2°C）、M7 Word/PPT/图表；**开机自启已验证（重启 22s API 上线）**。
+实测评估完成；**M1–M7 全部验证**；**M8 蓝桥杯知识库已上线**：1606 片段 / 464 来源，板卡/源码/课件直答约 0.04s，开放问题才调用 Qwen2.5-0.5B；前端已改为“蓝桥杯 AI 助教”，附资料来源与快捷问题。硬件命令仍走规则路由，已验证可直接执行。
 
 ## 已完成
 
@@ -37,23 +37,31 @@
 - **M7 完成（初版）**：`paper/课程设计报告.docx`（封面 + 7 表 + 9 图）、`paper/答辩PPT.pptx`（10 页）、`paper/figures/*.png`（系统框图/电源树/接线/流程图/UART/PWM/UI 示意）；脚本 `make_figures.py`、`make_ui_mock.py`、`build_report_docx.py`、`build_ppt.py`。
 - **M6 稳定性通过**：1801.4s / 180 轮 / **933 次检查 / 0 失败**；最高 47.2°C；最低空闲 6251MB；VLM 2 次单图检查 OK。数据在 `paper/stability_summary.json`。
 - **开机自启完成**：`llama.service`、`vlm.service`、`ai-terminal.service` 均 enabled/active；重启验证 API **22s** 上线；eth0 固定 `192.168.49.50`；LCD 显示 IP/READY；新增 `pi/systemd/`、`scripts/install_services.sh`、`docs/课堂演示网络配置.md`。
+- **M8 知识库完成**：
+  - PC 侧 `scripts/build_knowledge.py` 提取 37 份 PPT（OLE 文本原子）、3 份 PDF、3 份 DOCX、3 份 XLSX、51 个源码压缩包（仅 `.c/.h/.ioc`，过滤 HAL/CMSIS/构建产物），并加入 `docs/board_facts.md` 与本机固件。
+  - 生成 `knowledge/chunks.jsonl`（1606 片段 / 2.62MB 文本）+ `manifest.json`；`knowledge/` 已 gitignore，不上传。
+  - `pi/app/knowledge.py`：中文 bigram + ASCII 标识符 + 同义词 BM25；板卡事实卡/本机固件加权；`/api/knowledge/status|search|reload`。
+  - `/api/chat`：硬件规则路由 → 知识库直答（板卡/本机固件/官方 BSP/课件摘录）→ 0.5B RAG 回退 → 范围提示；SSE 先发 `sources`，前端显示“知识库直答/RAG 生成”和可展开来源。
+  - 前端：品牌改为“蓝桥杯 AI 助教”、CT117E-M4 副标题、8 个快捷问题、知识库片段数、来源卡片；硬件控制面板保留。
+  - 实测：LED/USART/I2C/PWM/LCD/入门/真题/竞赛简介/NVIC/输入捕获均 **0.04–0.05s 直答**；硬件命令“让 LED1 亮起来”仍执行 `OK LED 1 1`。
 
 ## 待办
 
 | # | 事项 | 影响 | 下一步 |
 |---|---|---|---|
-| 1 | 最终提交 + tag `v0.5.1` | 交付 | commit/push/tag |
+| 1 | 最终提交 + tag `v0.6.0` | 交付 | commit/push/tag |
 | 2 | PWM 物理波形/ADC 电位器变化 | HIL 证据 | 万用表/示波器复测 |
 | 3 | 组内分工 | 报告分工 | 用户确认 8–10 人角色 |
 | 4 | 指导老师要求 | 仿真/焊接/PCB | 用户确认 |
 | 5 | 摄像头 | 可选扩展 | 当前无摄像头 |
 | 6 | 实物照片/UI 截图/封面信息 | 报告完整性 | 组员补拍/填写 |
+| 7 | 图片型真题 OCR | 真题题面覆盖 | 可选；当前真题汇编/OneNote 仅目录 |
 
 ## 下一步（按顺序）
 
-1. 最终 commit/push + tag `v0.5.1`（含开机自启与课堂网络说明）。
-2. 组员补拍实物照片、替换 UI 示意截图、填写封面信息。
-3. 打印报告、按 `docs/课堂演示网络配置.md` 做一次课堂彩排。
+1. 最终 commit/push + tag `v0.6.0`（含知识库构建、RAG 后端、助教前端）。
+2. 组员补拍实物照片、替换 UI 示意图、填写封面信息；按 `docs/课堂演示网络配置.md` 彩排。
+3. 可选：PWM/ADC 物理复测；图片型真题 OCR。
 
 ## 重要决策
 
@@ -61,11 +69,12 @@
 |---|---|---|
 | 调试/烧录 | CMSIS-DAP + pyOCD（Keil G4 pack）+ PC Keil 兜底 | 板载是 Keil CMSIS-DAP，`st-flash` 不适用；已实测通过 |
 | 串口 | 板载 CMSIS-DAP VCP，`/dev/ttyACM0` | 已双向验证；固件必须用 `GPIO_MODE_AF_PP`，禁用 `AF_OD` |
-| 主链路 | UART 命令模式为 P0；Pi 烧录为 P1/P2 演示 | 命令模式已具备条件；烧录已验证但演示前仍需长稳测试 |
+| 主链路 | UART 命令模式 + 本地知识库 RAG；Pi 烧录为 P1/P2 演示 | 命令/RAG 已具备条件；烧录已验证 |
 | VLM 输入 | 网页上传图片，不做 Pi 摄像头 | 当前无摄像头；上传图片足够课程演示 |
-| 模型分工 | 0.5B 意图路由，1.5B 对话，SmolVLM-500M 选做 | Pi 4B 8GB 算力有限；小模型做结构化选择更稳 |
-| LLM 边界 | 只输出结构化决策，后端白名单校验 | 防止幻觉直接操作硬件 |
-| 前端 | PC 构建 Vue，Pi 静态托管；无构建 HTML 兜底 | Pi 没装 Node，避免在 Pi 上装整套前端工具链 |
+| 模型分工 | 规则路由硬件命令；RAG 直答板卡/源码；0.5B 只处理开放问题 | Pi 4B 算力有限；0.5B 长上下文约 19 tok/s，直答可避免 30–80s 延迟 |
+| LLM 边界 | 硬件动作只走白名单规则；LLM 不直接操作硬件 | 防止幻觉直接控制板子 |
+| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 | 无需向量库/额外服务；1606 片段查询 3ms |
+| 前端 | 无构建 HTML/CSS/JS，Pi 静态托管 | Pi 没装 Node；浏览器已验证 |
 | 烧录安全 | 只烧 manifest 内固件；烧录前备份 | 已实际备份 128KB，可作为回滚依据 |
 
 ## 已知问题
@@ -80,6 +89,8 @@
 - **Python 3.8**：FastAPI/uvicorn/pydantic 需固定兼容版本。
 - **磁盘 15GB**：模型与构建产物要控制；必要时外接 U 盘。
 - **报告要求**：Proteus 对 Pi/LLM 不可仿真，需在报告中说明边界，只仿真 MCU 子系统/关键电路。
+- **知识库限制**：3 份真题 DOCX 与 422 页 OneNote PDF 主要是截图，未 OCR，只能检索目录/标题；题面需查原文件。旧平台（F103/STC15）内容已降权，只作原理参考。
+- **0.5B 回退慢**：开放问题 RAG 约 20–35s；板卡/源码/课件类已走毫秒级直答。课堂演示优先用快捷问题。
 
 ## 验证记录
 
@@ -112,6 +123,13 @@
 | 2026-11-18 | M5 VLM | SmolVLM-500M + `/api/vision` | **34.11s**；返回 `HELLO` |
 | 2026-11-18 | 开机自启 | `sudo reboot` + `curl /api/info` | **22s API 上线**；三个服务 enabled/active；eth0 固定 192.168.49.50 |
 | 2026-11-18 | M6 稳定性 | `scripts/stability_test.py --duration 1800` | 1801.4s / **933 次检查 / 0 失败**；最高 47.2°C；最低空闲 6251MB |
-| 2026-11-18 | M7 Word | `python scripts/build_report_docx.py` | 477KB；7 表；9 图 |
-| 2026-11-18 | M7 PPT | `python scripts/build_ppt.py` | 10 页 |
+| 2026-11-18 | M7 Word | `python scripts/build_report_docx.py` | 478KB；7 表；9 图 |
+| 2026-11-18 | M7 PPT | `python scripts/build_ppt.py` | 当前 11 页 |
+| 2026-11-19 | M8 构建 | `python scripts/build_knowledge.py` | 1606 片段 / 464 来源 / 2.62MB 文本 |
+| 2026-11-19 | M8 检索 | `/api/knowledge/search?q=LED` | 3ms；板卡事实卡/本机固件命中 |
+| 2026-11-19 | M8 直答 | `/api/chat` LED/I2C/PWM/USART/LCD | **0.04s**；来源 2 条 |
+| 2026-11-19 | M8 课件 | NVIC / 输入捕获 | 0.05s；PPT 摘录 / 代码 + PPT |
+| 2026-11-19 | M8 范围 | “树莓派是什么” | 0.03s；范围提示，不调用模型 |
+| 2026-11-19 | 前端 DOM | 浏览器打开页面、快捷问题、来源卡片 | 通过；截图 API 超时，未取得视觉截图 |
+| 2026-11-19 | 硬件分流 | 前端“让 LED1 亮起来” | `OK LED 1 1`；随后关闭 |
 | — | PWM 物理波形 | PA2 万用表/示波器 | 待 HIL（0/50/100% ≈ 0/1.65/3.3V） |
