@@ -5,12 +5,14 @@ LLM/VLM endpoints are added in M3/M5.
 """
 import base64
 import json
+import os
 import re
+import secrets
 from pathlib import Path
 from typing import List
 
 import httpx
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +36,65 @@ app.add_middleware(
 )
 
 serial_svc = SerialService()
+
+
+def _load_remote_access():
+    """Optional Basic-auth credentials for Cloudflare tunnel requests.
+
+    The file is kept outside the repository, one line: user:password.
+    LAN requests (no Cloudflare headers) remain password-free.
+    """
+    path = Path(os.environ.get("AI_ACCESS_FILE", str(Path.home() / ".ai_terminal_access")))
+    if not path.is_file():
+        return None
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if ":" in line:
+                user, password = line.split(":", 1)
+                if user.strip() and password.strip():
+                    return user.strip(), password.strip()
+    except Exception:
+        return None
+    return None
+
+
+REMOTE_ACCESS = _load_remote_access()
+
+
+@app.middleware("http")
+async def remote_auth(request: Request, call_next):
+    if REMOTE_ACCESS and (
+        request.headers.get("cf-connecting-ip") or request.headers.get("cf-ray")
+    ):
+        header = request.headers.get("authorization", "")
+        ok = False
+        if header.lower().startswith("basic "):
+            try:
+                raw = base64.b64decode(header.split(None, 1)[1]).decode("utf-8")
+                user, _, password = raw.partition(":")
+                ok = (
+                    secrets.compare_digest(user, REMOTE_ACCESS[0])
+                    and secrets.compare_digest(password, REMOTE_ACCESS[1])
+                )
+            except Exception:
+                ok = False
+        if not ok:
+            return Response(
+                "需要访问密码",
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="CT117E-M4 AI"'},
+            )
+    return await call_next(request)
+
+
+@app.get("/api/whoami")
+def whoami(request: Request) -> dict:
+    return {
+        "client": request.client.host if request.client else None,
+        "cf_connecting_ip": request.headers.get("cf-connecting-ip"),
+        "cf_ray": request.headers.get("cf-ray"),
+        "remote_auth": bool(REMOTE_ACCESS),
+    }
 
 
 @app.on_event("startup")

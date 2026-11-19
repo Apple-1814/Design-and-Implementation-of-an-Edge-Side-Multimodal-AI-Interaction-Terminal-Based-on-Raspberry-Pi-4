@@ -6,6 +6,7 @@ blocked VCP cannot block FastAPI startup. Device endpoints return 503 while
 the port is still opening; use /api/device/reconnect after a replug.
 """
 import os
+import subprocess
 import threading
 import time
 from typing import Optional
@@ -13,11 +14,28 @@ from typing import Optional
 import serial
 
 
+def _wifi_ip() -> Optional[str]:
+    """Return the current wlan0 IPv4 address, if the Pi is on Wi-Fi."""
+    try:
+        out = subprocess.check_output(
+            ["ip", "-4", "-o", "addr", "show", "wlan0"],
+            text=True, stderr=subprocess.DEVNULL, timeout=2,
+        )
+        for token in out.split():
+            if "/" in token and token[0].isdigit():
+                return token.split("/", 1)[0]
+    except Exception:
+        pass
+    return None
+
+
 class SerialService:
     def __init__(self, port: str = "/dev/ttyACM0", baud: int = 9600) -> None:
         self.port = port
         self.baud = baud
-        self.demo_ip = os.environ.get("DEMO_IP", "192.168.49.50")
+        # Prefer the Wi-Fi address so other classroom PCs can reach the UI;
+        # fall back to the fixed Ethernet demo address.
+        self.demo_ip = _wifi_ip() or os.environ.get("DEMO_IP", "192.168.49.50")
         self._lock = threading.RLock()
         self._ser: Optional[serial.Serial] = None
         self._opening = False
@@ -119,4 +137,6 @@ class SerialService:
             "opening": self._opening,
             "last_error": self.last_error,
             "last_response": self.last_response,
+            "demo_ip": self.demo_ip,
+            "access_url": f"http://{self.demo_ip}:8000/",
         }

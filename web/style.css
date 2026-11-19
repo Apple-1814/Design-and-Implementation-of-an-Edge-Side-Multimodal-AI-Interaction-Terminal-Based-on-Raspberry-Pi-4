@@ -711,3 +711,18 @@ button, input, textarea { font-family: inherit; }
 }
 
 .channel-block input[type="range"] { margin-bottom: 0; }
+
+.access-url {
+  display: block;
+  margin: 0 0 12px;
+  padding: 7px 9px;
+  border: 1px dashed rgba(79, 140, 255, .35);
+  border-radius: 8px;
+  color: var(--accent-2);
+  font-size: 10.5px;
+  line-height: 1.45;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.access-url:hover { border-color: var(--accent); background: rgba(79, 140, 255, .06); }

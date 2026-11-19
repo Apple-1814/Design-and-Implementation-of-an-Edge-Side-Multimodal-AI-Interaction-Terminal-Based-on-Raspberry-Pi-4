@@ -405,6 +405,11 @@ async function refreshStatus() {
     const text = ok ? `串口已连接 · ${data.port}` : `串口未连接 · ${data.last_error || "未打开"}`;
     $("#serialText").textContent = text;
     $("#panelStatus").textContent = text;
+    const access = $("#accessUrl");
+    if (access && data.access_url) {
+      access.href = data.access_url;
+      access.textContent = `其他电脑访问：${data.access_url}`;
+    }
   } catch {
     $("#serialText").textContent = "后端未连接";
     $("#panelStatus").textContent = "后端未连接";

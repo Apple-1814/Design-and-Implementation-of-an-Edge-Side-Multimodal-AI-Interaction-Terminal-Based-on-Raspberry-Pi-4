@@ -91,7 +91,24 @@ ROOT=$HOME/ai-terminal bash scripts/start_all.sh
 
 浏览器访问 `http://<树莓派IP>:8000/`。
 
-> **开机自启已配置**：`llama.service`、`vlm.service`、`ai-terminal.service` 均为 enabled；给 Pi 上电后约 22 秒 API 上线，LCD 显示固定 IP 与 `READY`。首次安装：
+### 其他电脑访问
+
+- 树莓派已连接 **OpenWrt Wi-Fi**，当前地址 **`192.168.1.165`**。
+- 其他电脑连接同一个 Wi-Fi 后打开：`http://192.168.1.165:8000/`。
+- 页面右侧显示“其他电脑访问”地址；LCD 也显示当前 Wi-Fi IP。
+- 直连网线地址 `192.168.49.50` 只适合你的电脑维护使用。
+- Wi-Fi IP 变化时，以面板/LCD 为准；可在 OpenWrt 给树莓派做 DHCP 静态租约。
+- 不同网络（各自热点）默认不可互访；需要端口映射/内网穿透时，先加访问认证，避免暴露硬件控制接口。
+
+### 跨网访问（Cloudflare 临时隧道）
+
+- 详细步骤见 [docs/公网访问.md](docs/公网访问.md)。
+- 启动：`bash scripts/start_tunnel.sh`；URL 在 `~/ai-terminal/logs/cloudflared.log`。
+- 公网链接启用 Basic 密码，用户名/密码在树莓派 `~/.ai_terminal_access`（不入 Git）。
+- 仅公网请求需要密码；同一 Wi-Fi/局域网的 `192.168.1.165:8000` 不受影响。
+- 临时隧道无可用性保证；课堂演示前提前启动并自测，演示后可 `bash scripts/stop_tunnel.sh`。
+
+> **开机自启已配置**：`llama.service`、`vlm.service`、`ai-terminal.service` 均为 enabled；给 Pi 上电后约 22 秒 API 上线，LCD 显示当前 Wi-Fi IP 与 `READY`。首次安装：
 >
 > ```bash
 > ROOT=/home/apple/ai-terminal bash scripts/install_services.sh
