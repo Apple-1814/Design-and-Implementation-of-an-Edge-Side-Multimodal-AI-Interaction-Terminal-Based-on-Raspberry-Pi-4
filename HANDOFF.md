@@ -5,7 +5,7 @@
 
 ## 当前阶段
 
-实测评估完成；**M1–M7 全部验证**；**M8 蓝桥杯知识库已上线**：1606 片段 / 464 来源，板卡/源码/课件直答约 0.04s，开放问题才调用 Qwen2.5-0.5B；前端已改为“蓝桥杯 AI 助教”，附资料来源与快捷问题。硬件命令仍走规则路由，已验证可直接执行。
+实测评估完成；**M1–M7 全部验证**；**M8 蓝桥杯知识库已上线**：1607 片段 / 464 来源，板卡/源码/课件直答约 0.04s，开放问题才调用 Qwen2.5-0.5B；前端已改为“蓝桥杯 AI 助教”，附资料来源与快捷问题。硬件命令仍走规则路由，已验证可直接执行。
 
 ## 已完成
 
@@ -39,11 +39,12 @@
 - **开机自启完成**：`llama.service`、`vlm.service`、`ai-terminal.service` 均 enabled/active；重启验证 API **22s** 上线；eth0 固定 `192.168.49.50`；LCD 显示 IP/READY；新增 `pi/systemd/`、`scripts/install_services.sh`、`docs/课堂演示网络配置.md`。
 - **M8 知识库完成**：
   - PC 侧 `scripts/build_knowledge.py` 提取 37 份 PPT（OLE 文本原子）、3 份 PDF、3 份 DOCX、3 份 XLSX、51 个源码压缩包（仅 `.c/.h/.ioc`，过滤 HAL/CMSIS/构建产物），并加入 `docs/board_facts.md` 与本机固件。
-  - 生成 `knowledge/chunks.jsonl`（1606 片段 / 2.62MB 文本）+ `manifest.json`；`knowledge/` 已 gitignore，不上传。
+  - 生成 `knowledge/chunks.jsonl`（1607 片段 / 2.62MB 文本）+ `manifest.json`；`knowledge/` 已 gitignore，不上传。
   - `pi/app/knowledge.py`：中文 bigram + ASCII 标识符 + 同义词 BM25；板卡事实卡/本机固件加权；`/api/knowledge/status|search|reload`。
   - `/api/chat`：硬件规则路由 → 知识库直答（板卡/本机固件/官方 BSP/课件摘录）→ 0.5B RAG 回退 → 范围提示；SSE 先发 `sources`，前端显示“知识库直答/RAG 生成”和可展开来源。
   - 前端：品牌改为“蓝桥杯 AI 助教”、CT117E-M4 副标题、8 个快捷问题、知识库片段数、来源卡片；硬件控制面板保留。
   - 实测：LED/USART/I2C/PWM/LCD/入门/真题/竞赛简介/NVIC/输入捕获均 **0.04–0.05s 直答**；硬件命令“让 LED1 亮起来”仍执行 `OK LED 1 1`。
+  - 身份/问候修复：`你是谁/你能做什么` → `mode=meta`，`你好/谢谢` → `mode=greeting`；普通无资料问题交 Qwen；树莓派运行环境已加入事实卡第 12 节。
 
 ## 待办
 
@@ -73,7 +74,7 @@
 | VLM 输入 | 网页上传图片，不做 Pi 摄像头 | 当前无摄像头；上传图片足够课程演示 |
 | 模型分工 | 规则路由硬件命令；RAG 直答板卡/源码；0.5B 只处理开放问题 | Pi 4B 算力有限；0.5B 长上下文约 19 tok/s，直答可避免 30–80s 延迟 |
 | LLM 边界 | 硬件动作只走白名单规则；LLM 不直接操作硬件 | 防止幻觉直接控制板子 |
-| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 | 无需向量库/额外服务；1606 片段查询 3ms |
+| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 | 无需向量库/额外服务；1607 片段查询 3ms |
 | 前端 | 无构建 HTML/CSS/JS，Pi 静态托管 | Pi 没装 Node；浏览器已验证 |
 | 烧录安全 | 只烧 manifest 内固件；烧录前备份 | 已实际备份 128KB，可作为回滚依据 |
 
@@ -125,7 +126,7 @@
 | 2026-11-18 | M6 稳定性 | `scripts/stability_test.py --duration 1800` | 1801.4s / **933 次检查 / 0 失败**；最高 47.2°C；最低空闲 6251MB |
 | 2026-11-18 | M7 Word | `python scripts/build_report_docx.py` | 478KB；7 表；9 图 |
 | 2026-11-18 | M7 PPT | `python scripts/build_ppt.py` | 当前 11 页 |
-| 2026-11-19 | M8 构建 | `python scripts/build_knowledge.py` | 1606 片段 / 464 来源 / 2.62MB 文本 |
+| 2026-11-19 | M8 构建 | `python scripts/build_knowledge.py` | 1607 片段 / 464 来源 / 2.62MB 文本 |
 | 2026-11-19 | M8 检索 | `/api/knowledge/search?q=LED` | 3ms；板卡事实卡/本机固件命中 |
 | 2026-11-19 | M8 直答 | `/api/chat` LED/I2C/PWM/USART/LCD | **0.04s**；来源 2 条 |
 | 2026-11-19 | M8 课件 | NVIC / 输入捕获 | 0.05s；PPT 摘录 / 代码 + PPT |

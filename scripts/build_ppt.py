@@ -193,7 +193,7 @@ def main():
     # 8 knowledge base
     s = prs.slides.add_slide(prs.slide_layouts[6])
     title_bar(s, "蓝桥杯知识库 RAG", 8)
-    textbox(s, 0.8, 1.35, 11.8, 0.6, "1606 个片段 · 464 个来源 · 2.62MB 文本", 26, True, GREEN)
+    textbox(s, 0.8, 1.35, 11.8, 0.6, "1607 个片段 · 464 个来源 · 2.62MB 文本", 26, True, GREEN)
     bullets(s, 0.8, 2.2, 5.7, 4.4, [
         "资料：章节 PPT、产品手册、实训指导书",
         "真题汇编目录、考点统计、官方/历年源码",
@@ -222,7 +222,7 @@ def main():
         "ADC 读回 1759；PWM 0/50/100% 回读一致",
         "自然语言：「让 LED1 亮起来」「LCD 显示 Hello」「读取 ADC」「PWM 50」均执行",
         "LLM 7.26 tok/s；VLM 单图 34.11 s；30 分钟稳定性 933 次检查 / 0 失败（最高 47.2°C）",
-        "知识库：1606 片段；LED/I2C/PWM/USART/LCD 直答 0.04s，附来源",
+        "知识库：1607 片段；LED/I2C/PWM/USART/LCD 直答 0.04s，附来源",
         "systemd 开机自启：上电后约 22 秒 API 上线（LCD 显示 IP/READY）",
     ], 17)
 

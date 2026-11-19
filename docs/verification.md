@@ -115,15 +115,17 @@
 
 | 项 | 命令/操作 | 结果 |
 |---|---|---|
-| 构建 | `python scripts/build_knowledge.py` | 1606 片段 / 464 来源 / 2,624,356 chars |
+| 构建 | `python scripts/build_knowledge.py` | 1607 片段 / 464 来源 / 2,624,792 chars |
 | 覆盖 | PPT/PDF/DOCX/XLSX/源码压缩包 | 37 PPT、3 PDF、3 DOCX、3 XLSX、51 个源码包；过滤 HAL/CMSIS/构建产物 |
 | 索引 | `knowledge/chunks.jsonl` + `manifest.json` | 3.5MB JSONL；sha256 见 manifest |
-| 加载 | `GET /api/knowledge/status` | loaded=true；kinds: board 18 / code 920 / ioc 138 / ppt 66 / pdf 447 / docx 3 / xlsx 14 |
+| 加载 | `GET /api/knowledge/status` | loaded=true；kinds: board 19 / code 920 / ioc 138 / ppt 66 / pdf 447 / docx 3 / xlsx 14 |
 | 检索 | `GET /api/knowledge/search?q=LED怎么点亮` | 约 3ms；板卡事实卡 3.1 + 本机 `bsp_led.c` |
 | 冒烟测试 | `python scripts/test_knowledge.py` | 9 个问答 PASS + 范围外 PASS |
 | 直答 | `POST /api/chat` LED/I2C/PWM/USART/LCD | **0.04s**；`mode=knowledge`；2 条来源 |
 | 课件直答 | `POST /api/chat` NVIC/输入捕获 | **0.05s**；PPT 摘录 / 代码+PPT |
-| 范围提示 | `POST /api/chat` “树莓派是什么” | **0.03s**；`mode=scope`，不调用模型 |
+| 范围提示 | `POST /api/chat` “今天天气怎么样” | **0.03s**；`mode=scope`，不调用模型 |
+| 身份路由 | `POST /api/chat` “你是谁/你好” | **0.04s**；`mode=meta/greeting`，正确介绍 Qwen2.5-0.5B 与知识库 |
+| 树莓派事实 | `POST /api/chat` “树莓派是什么” | 0.04s；板卡事实卡第 12 节，说明 Pi 与 STM32 分工 |
 | 硬件分流 | 前端“让 LED1 亮起来” | `OK LED 1 1`；随后“LED1 关”恢复 |
 | 前端 DOM | 浏览器打开 `/`、快捷问题、来源卡片 | 通过；截图 API 30s 超时，未取得视觉截图 |
 | 知识库排除 | `git status` / `.gitignore` | `knowledge/` 已忽略，不入库 |
@@ -152,4 +154,4 @@ sudo sh -c 'echo 0 > /sys/bus/usb/devices/1-1.1/authorized; sleep 1; echo 1 > /s
 | M5 | SmolVLM 上传图片问答 | **基础验证**：单图 34.11s，返回 `HELLO` |
 | M6 | 整机联调 30 分钟稳定性 | **已验证**：933 次检查 / 0 失败；最高 47.2°C |
 | M7 | 报告、图表、演示、PPT | **Word/PPT/图表/稳定性数据已完成** |
-| M8 | 蓝桥杯知识库/RAG/助教前端 | **已验证**：1606 片段；直答 0.04s；模型回退 20–35s |
+| M8 | 蓝桥杯知识库/RAG/助教前端 | **已验证**：1607 片段；直答 0.04s；模型回退 20–35s |

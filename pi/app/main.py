@@ -38,7 +38,7 @@ serial_svc = SerialService()
 
 @app.on_event("startup")
 def startup_load_knowledge() -> None:
-    # 1606 chunks tokenise in about a second on the Pi; keep startup
+    # 1607 chunks tokenise in about a second on the Pi; keep startup
     # deterministic so the first question already has retrieval available.
     kb.load()
 
@@ -240,13 +240,48 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         )
 
     if req.use_knowledge and not context:
-        if re.search(r"^\s*(你好|您好|hi|hello|在吗|嗨)[！!。,.?\s]*$", last, re.I):
-            scope_text = (
-                "你好！我是蓝桥杯嵌入式 AI 助教，专精 CT117E-M4 / STM32G431RBT6 的板卡、外设、"
-                "代码和历年真题。你可以问：LED/按键/LCD/USART/ADC/PWM/I2C/RTC 怎么配置，"
-                "也可以直接说“让 LED1 亮起来”。"
+        meta_re = re.compile(
+            r"你是谁|你叫什么|你的名字|自我介绍|介绍一下你自己|你是什么模型|你是哪个模型|"
+            r"你用的什么模型|你能做什么|你会什么|你有什么功能|who are you|what can you do",
+            re.I,
+        )
+        greeting_re = re.compile(r"^\s*(你好|您好|hi|hello|嗨|在吗|谢谢|感谢|多谢)[！!。,.?\s]*$", re.I)
+        out_of_scope_re = re.compile(r"树莓派|linux|ubuntu|大模型|模型部署|天气|新闻|股票|写诗|翻译|讲个笑话", re.I)
+        board_risk_re = re.compile(
+            r"引脚|管脚|寄存器|PA\d|PB\d|PC\d|PD\d|GPIO|USART|UART|I2C|IIC|ADC|PWM|LED|LCD|RTC|"
+            r"TIM|定时器|中断|时钟|CubeMX|Keil|HAL|代码|程序|配置",
+            re.I,
+        )
+
+        async def fixed_stream(text: str, mode: str):
+            yield "data: " + json.dumps(
+                {"sources": [], "knowledge": {"hits": 0, "chunks": len(kb.docs)}, "mode": mode},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: " + json.dumps(
+                {"choices": [{"delta": {"content": text}}], "mode": mode},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: [DONE]\n\n"
+
+        if meta_re.search(last):
+            meta_text = (
+                "我是**蓝桥杯嵌入式 AI 助教**，运行在树莓派 4B 上。\n\n"
+                "- 底层语言模型：**Qwen2.5-0.5B-Instruct（GGUF Q4_K_M）**，本地推理，不依赖云端 API。\n"
+                f"- 知识库：**CT117E-M4 专用知识库**，当前 {len(kb.docs)} 个片段 / {len({d.get('source') for d in kb.docs})} 个来源，覆盖板卡、外设、代码与真题。\n"
+                "- 我还能通过规则路由控制板载 LED、LCD、ADC、PWM（例如“让 LED1 亮起来”）。\n\n"
+                "你可以直接问：“LED 怎么点亮？”“USART1 怎么配置？”“I2C 读写 AT24C02 怎么写？”"
             )
-        else:
+            return StreamingResponse(fixed_stream(meta_text, "meta"), media_type="text/event-stream")
+
+        if greeting_re.search(last):
+            greet_text = (
+                "你好！我是蓝桥杯嵌入式 AI 助教，专精 CT117E-M4 / STM32G431RBT6。"
+                "可以问我板卡、外设、代码和历年真题，也可以直接说“让 LED1 亮起来”。"
+            )
+            return StreamingResponse(fixed_stream(greet_text, "greeting"), media_type="text/event-stream")
+
+        if out_of_scope_re.search(last) or board_risk_re.search(last):
             scope_text = (
                 "这个问题不在当前蓝桥杯板卡知识库的覆盖范围内。\n\n"
                 "我主要回答 **CT117E-M4 / STM32G431RBT6** 的：\n"
@@ -255,19 +290,10 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 "- 省赛/国赛真题考点与备赛路线\n\n"
                 "如果你问的是树莓派、Linux 或通用大模型部署，建议查阅对应官方文档。"
             )
+            return StreamingResponse(fixed_stream(scope_text, "scope"), media_type="text/event-stream")
 
-        async def scope_stream():
-            yield "data: " + json.dumps(
-                {"sources": [], "knowledge": {"hits": 0, "chunks": len(kb.docs)}, "mode": "scope"},
-                ensure_ascii=False,
-            ) + "\n\n"
-            yield "data: " + json.dumps(
-                {"choices": [{"delta": {"content": scope_text}}], "mode": "scope"},
-                ensure_ascii=False,
-            ) + "\n\n"
-            yield "data: [DONE]\n\n"
-
-        return StreamingResponse(scope_stream(), media_type="text/event-stream")
+        # 普通对话/常识问题：没有知识库上下文也交给本地 Qwen 回答。
+        # 只有涉及板卡具体引脚/配置且未命中资料时才使用上面的范围提示。
 
     messages = build_messages(
         [m.model_dump() for m in req.messages], last, context, sources

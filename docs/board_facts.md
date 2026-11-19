@@ -168,3 +168,11 @@
 - 涉及引脚、时钟、寄存器配置时，明确写出“本板已验证”的事实；不确定的写“以官方资源包/原理图为准”，不要编造。
 - 用户问代码时，优先给 HAL 初始化顺序 + 关键函数 + 易错点，不贴与问题无关的整段工程。
 - 用户问竞赛策略时，按“读题 → 列外设 → 画流程 → 分模块 → 联调 → 留演示时间”回答。
+
+## 12. 本终端的树莓派运行环境
+
+- 本 AI 终端运行在 **Raspberry Pi 4B Rev 1.5，8GB RAM，Ubuntu 20.04.6 LTS（aarch64）**，4 核 Cortex-A72 1.8GHz。
+- 本地模型：Qwen2.5-0.5B-Instruct（LLM）、SmolVLM-500M（VLM），均通过 llama.cpp 在 Pi 的 CPU 上推理。
+- FastAPI、BM25 知识库、串口服务运行在 Pi；STM32G431 通过板载 CMSIS-DAP 的 USB CDC 虚拟串口 `/dev/ttyACM0` 连接。
+- **Pi 不是 STM32，也不运行 Keil**：Keil 工程在 PC 编译生成 `.hex`，可在 Pi 上用 pyOCD 烧录到 STM32。
+- 树莓派与 STM32 的分工：Pi 负责推理、知识库、Web 服务；STM32 负责实时外设控制（LED/LCD/ADC/PWM）。
