@@ -698,6 +698,33 @@ $("#imageInput").addEventListener("change", (e) => {
 });
 $("#imageClear").addEventListener("click", clearPendingImage);
 
+const THEME_KEY = "ai-terminal-theme-v1";
+const THEMES = ["light", "mint", "warm", "lavender", "dark"];
+
+function applyTheme(theme) {
+  const value = THEMES.includes(theme) ? theme : "light";
+  document.documentElement.dataset.theme = value;
+  const select = $("#themeSelect");
+  if (select) select.value = value;
+  try {
+    localStorage.setItem(THEME_KEY, value);
+  } catch {
+    /* private mode / storage disabled */
+  }
+}
+
+const themeSelect = $("#themeSelect");
+if (themeSelect) {
+  let saved = "light";
+  try {
+    saved = localStorage.getItem(THEME_KEY) || document.documentElement.dataset.theme || "light";
+  } catch {
+    saved = document.documentElement.dataset.theme || "light";
+  }
+  applyTheme(saved);
+  themeSelect.addEventListener("change", (e) => applyTheme(e.target.value));
+}
+
 loadSessions();
 refreshStatus();
 refreshKnowledge();

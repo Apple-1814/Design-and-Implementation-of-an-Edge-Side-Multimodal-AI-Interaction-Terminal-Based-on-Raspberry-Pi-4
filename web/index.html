@@ -1,10 +1,16 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>蓝桥杯嵌入式 AI 助教 · CT117E-M4</title>
-  <link rel="stylesheet" href="style.css">
+  <script>
+    try {
+      document.documentElement.dataset.theme =
+        localStorage.getItem("ai-terminal-theme-v1") || "light";
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="style.css?v=0.8.1">
 </head>
 <body>
   <div class="app">
@@ -30,6 +36,15 @@
         <div class="topbar-left">
           <div class="model-pill">Qwen2.5-0.5B · 本地 RAG</div>
           <div class="kb-pill" id="kbPill">知识库加载中…</div>
+          <label class="theme-picker"><span>配色</span>
+            <select id="themeSelect" aria-label="配色主题">
+              <option value="light">浅蓝白</option>
+              <option value="mint">薄荷青</option>
+              <option value="warm">暖白橙</option>
+              <option value="lavender">浅紫</option>
+              <option value="dark">深色</option>
+            </select>
+          </label>
         </div>
         <div class="topbar-actions">
           <button class="ghost" id="clearChat">清空当前对话</button>
@@ -162,6 +177,6 @@
       <div class="panel-log" id="panelLog"></div>
     </aside>
   </div>
-  <script src="app.js"></script>
+  <script src="app.js?v=0.8.1"></script>
 </body>
 </html>

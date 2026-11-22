@@ -181,7 +181,7 @@ def main():
     title_bar(s, "Web 前端与自然语言控制", 7)
     picture(s, "ui-chat.png", 0.55, 1.25, 8.6, 5.9)
     bullets(s, 9.35, 1.5, 3.6, 5.3, [
-        "类 DeepSeek 深色聊天界面",
+        "浅蓝白主界面 + 5 套可切换配色",
         "SSE 流式输出、会话历史",
         "设备面板：8 LED / 双 ADC / 双 PWM",
         "图片上传 → /api/vision",
