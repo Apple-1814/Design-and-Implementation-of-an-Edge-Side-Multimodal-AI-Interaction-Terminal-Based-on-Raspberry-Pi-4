@@ -10,7 +10,7 @@ import re
 import secrets
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
@@ -24,7 +24,7 @@ from .knowledge import build_messages, kb
 from .serial_service import SerialService
 from .tool_router import route_tool
 
-APP_VERSION = "0.8.1"
+APP_VERSION = "0.8.2"
 LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
 VLM_URL = "http://127.0.0.1:8081/v1/chat/completions"
 
@@ -88,6 +88,22 @@ async def remote_auth(request: Request, call_next):
     return await call_next(request)
 
 
+
+def _history_answer(text: str, messages) -> Optional[str]:
+    """Answer explicit meta-memory questions from the real chat history."""
+    t = (text or "").strip()
+    prior = list(messages[:-1])
+    if re.search(r"记住|数字", t) and re.search(r"多少|什么|几", t):
+        for m in reversed(prior):
+            nums = re.findall(r"[0-9]{3,8}", m.content or "")
+            if nums:
+                return f"你让我记住的数字是 **{nums[-1]}**。"
+    if re.search(r"我刚才(问|说)了什么|上一个问题|上一句", t):
+        for m in reversed(prior):
+            if m.role == "user" and m.content:
+                return f"你刚才问的是：**{m.content[:200]}**"
+    return None
+
 @app.get("/api/whoami")
 def whoami(request: Request) -> dict:
     return {
@@ -134,6 +150,7 @@ class ChatRequest(BaseModel):
     max_tokens: int = Field(default=192, ge=16, le=1024)
     temperature: float = Field(default=0.3, ge=0.0, le=2.0)
     use_knowledge: bool = True
+    fast_only: bool = False
 
 
 def _send(command: str, wait: float = 0.8) -> str:
@@ -386,17 +403,45 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
         return StreamingResponse(time_stream(), media_type="text/event-stream")
 
+    memory_text = _history_answer(last, req.messages)
+    if memory_text:
+        async def memory_stream():
+            yield "data: " + json.dumps(
+                {"sources": [], "knowledge": {"hits": 0, "chunks": len(kb.docs)}, "mode": "memory"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: " + json.dumps(
+                {"choices": [{"delta": {"content": memory_text}}], "mode": "memory"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(memory_stream(), media_type="text/event-stream")
+
     # A short follow-up such as "那代码呢" needs the previous question for
     # retrieval, while the LLM still sees the normal chat history.
     user_msgs = [m.content for m in req.messages if m.role == "user" and m.content]
+    context_query_re = re.compile(r"记住|刚才|刚刚|上面|前面|之前|只回答|数字是多少|哪个数字|我说过|我说")
+    general_def_re = re.compile(r"^(代码|程序)(是|指)?什么[？?]?$|^什么是(代码|程序)[？?]?$|^代码的含义")
+    module_hint_re = re.compile(
+        r"led|灯|key|按键|lcd|液晶|usart|串口|i2c|iic|24c02|adc|pwm|占空比|rtc|tim|定时器",
+        re.I,
+    )
     retrieval_query = last
-    if len(last) < 16 and len(user_msgs) >= 2:
-        retrieval_query = user_msgs[-2] + " " + last
+    if not (context_query_re.search(last) or general_def_re.search(last)):
+        if len(last) < 16 and len(user_msgs) >= 2:
+            retrieval_query = user_msgs[-2] + " " + last
+
+    # Explicit module in the current question wins for the code example;
+    # "那代码呢" falls back to the previous module.
+    code_focus = last
+    if not module_hint_re.search(last) and len(user_msgs) >= 2:
+        code_focus = user_msgs[-2] + " " + last
 
     # Retrieval-first: board/code questions are answered extractively in
     # milliseconds; only open-ended questions pay the 0.5B prompt cost.
-    if req.use_knowledge:
-        fast = await run_in_threadpool(kb.fast_answer, retrieval_query)
+    if req.use_knowledge and not context_query_re.search(last) and not general_def_re.search(last):
+        fast = await run_in_threadpool(kb.fast_answer, retrieval_query, 8, code_focus)
         if fast:
             answer, used_hits = fast
             fast_sources = [kb.source_dict(h, i) for i, h in enumerate(used_hits, 1)]
@@ -418,8 +463,22 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
             return StreamingResponse(fast_stream(), media_type="text/event-stream")
 
+    if req.fast_only:
+        async def no_fast_stream():
+            yield "data: " + json.dumps(
+                {"sources": [], "knowledge": {"hits": 0, "chunks": len(kb.docs)}, "mode": "no_fast"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: " + json.dumps(
+                {"choices": [{"delta": {"content": "NO_FAST"}}], "mode": "no_fast"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(no_fast_stream(), media_type="text/event-stream")
+
     context, sources = ("", [])
-    if req.use_knowledge:
+    if req.use_knowledge and not (context_query_re.search(last) or general_def_re.search(last)):
         context, sources = await run_in_threadpool(
             kb.build_context, retrieval_query, 3, 700
         )
@@ -463,9 +522,12 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         # 其余问题（包括天气、通用“代码是什么”等）交给本地 Qwen；
         # 提示词要求它不要编造实时数据和本板具体引脚。
 
-    messages = build_messages(
-        [m.model_dump() for m in req.messages], last, context, sources
-    )
+    llm_history = [m.model_dump() for m in req.messages]
+    # Definition/weather questions are standalone: feeding prior board history
+    # makes the 0.5B model copy unrelated code or mix topics.
+    if general_def_re.search(last) or re.search(r"天气|气温|下雨|下雪|新闻|股价", last):
+        llm_history = []
+    messages = build_messages(llm_history, last, context, sources)
     payload = {
         "model": "qwen",
         "messages": messages,

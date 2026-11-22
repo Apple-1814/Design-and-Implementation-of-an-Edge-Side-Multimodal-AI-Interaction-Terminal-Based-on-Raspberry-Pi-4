@@ -65,9 +65,22 @@ SYNONYMS = {
     "i2c": ["iic", "eeprom"],
     "at24c02": ["24c02"],
     "24c02": ["at24c02"],
+    "ram": ["sram"],
+    "sram": ["ram"],
+    "flash": ["128kb"],
+    "主频": ["80mhz"],
+    "mcu": ["stm32g431rbt6"],
     "keil": ["mdk"],
     "mdk": ["keil"],
     "cubemx": ["cube", "mx"],
+    "led1": ["ld1"],
+    "led2": ["ld2"],
+    "led3": ["ld3"],
+    "led4": ["ld4"],
+    "led5": ["ld5"],
+    "led6": ["ld6"],
+    "led7": ["ld7"],
+    "led8": ["ld8"],
     "hal": ["库"],
     "入门": ["新手", "上手", "路径"],
     "新手": ["入门", "上手", "路径"],
@@ -95,6 +108,9 @@ def tokenize(text: str, expand: bool = False) -> List[str]:
                 tokens.append(run)
     for word in ASCII_RE.findall(text):
         tokens.append(word)
+        for part in re.split(r"[_.:/]+", word):
+            if len(part) >= 2:
+                tokens.append(part)
     out = [t for t in tokens if t and t not in STOPWORDS]
     if expand:
         extra: List[str] = []
@@ -404,11 +420,21 @@ class KnowledgeBase:
         if re.search(r"led|灯|点亮", q_low):
             preferred += ["led_disp", "led_init"]
         if re.search(r"pwm|占空比", q_low):
-            preferred += ["setduty", "pwm"]
+            if re.search(r"初始化|启动|配置|init", q_low):
+                preferred += ["pwm_output_tim15_init", "setduty", "pwm"]
+            else:
+                preferred += ["setduty", "pwm_output_tim15_init", "pwm"]
         if re.search(r"usart|uart|串口", q_low):
             preferred += ["usart1_init", "mspinit", "uart"]
         if re.search(r"adc|电位器|采样", q_low):
-            preferred += ["getadc", "adc1_init"]
+            if "getadc1" in q_low:
+                preferred += ["getadc1", "adc1_init"]
+            elif "getadc2" in q_low:
+                preferred += ["getadc2", "adc2_init"]
+            elif re.search(r"初始化|配置|init", q_low):
+                preferred += ["adc1_init", "adc2_init", "getadc"]
+            else:
+                preferred += ["getadc", "adc1_init", "adc2_init"]
         if re.search(r"key|按键", q_low):
             preferred += ["key_scan", "key_init"]
         if re.search(r"rtc|实时时钟", q_low):
@@ -429,21 +455,23 @@ class KnowledgeBase:
         """Only use a board card when its section actually matches the ask."""
         section = ((hit.get("meta") or {}).get("section") or "").lower()
         q = (query or "").lower()
-        module_terms = {
-            "led": r"led|灯|点亮|gpio",
-            "按键": r"按键|key|消抖|松手",
-            "adc": r"adc|电位器|采样|模拟",
-            "pwm": r"pwm|占空比|tim15",
-            "usart": r"usart|uart|串口|波特率",
-            "i2c": r"i2c|iic|24c02|eeprom",
-            "lcd": r"lcd|液晶|屏幕|显示",
-            "rtc": r"rtc|实时时钟|日历",
-        }
+        module_terms = [
+            (r"led", r"led|灯|点亮|pc8|pc9|pc10|pc11|pc12|pc13|pc14|pc15|pd2"),
+            (r"按键", r"按键|key|消抖|松手|pb0|pb1|pb2|pa0"),
+            (r"adc", r"adc|电位器|采样|模拟|pb12|pb15"),
+            (r"pwm", r"pwm|占空比|tim15|pa2|pa3"),
+            (r"usart", r"usart|uart|串口|波特率|pa9|pa10|sizeof|发送|接收|中断|字符串"),
+            (r"i2c|iic", r"i2c|iic|24c02|eeprom|pb6|pb7"),
+            (r"lcd", r"lcd|液晶|屏幕|显示"),
+            (r"rtc", r"rtc|实时时钟|日历"),
+        ]
         if "蓝桥杯大赛与竞赛板" in section:
             return bool(re.search(r"蓝桥杯|比赛|竞赛|省赛|国赛|考点|入门|准备|备考|是什么", q))
         if "已验证引脚与配置" in section:
             # Match the subsection keyword, not just "配置".
-            return any(re.search(pat, q) and re.search(pat, section) for pat in module_terms.values())
+            return any(re.search(sp, section) and re.search(qp, q) for sp, qp in module_terms)
+        if "回答口径" in section:
+            return False
         if "常见故障速查" in section:
             return bool(re.search(r"不亮|常亮|收不到|乱跳|不变|无波形|花屏|失败|跑飞|找不到|下载成功|复位|排查|故障", q))
         if "调试顺序" in section:
@@ -452,8 +480,10 @@ class KnowledgeBase:
             return bool(re.search(r"真题|省赛|国赛|考点|备赛|考试|刷题|比赛|准备|备考", q))
         if "新手最短上手路径" in section:
             return bool(re.search(r"入门|新手|上手|快速|学习路线|怎么学", q))
-        if "板载资源" in section or "平台身份" in section or section.startswith("总览"):
-            return bool(re.search(r"资源|板载|型号|芯片|平台|是什么|介绍|入门", q))
+        if "平台身份" in section:
+            return bool(re.search(r"型号|芯片|平台|是什么|介绍|主频|flash|ram|sram|mcu|cortex|封装|内存|供电|电源|swd|st-link|调试|下载", q))
+        if "板载资源" in section or section.startswith("总览"):
+            return bool(re.search(r"资源|板载|型号|芯片|平台|是什么|介绍|入门|接口|J1|J3", q))
         if "竞赛常用模块清单" in section:
             return bool(re.search(r"模块清单|考什么|有哪些模块|模块有哪些", q))
         return True
@@ -527,7 +557,7 @@ class KnowledgeBase:
             return chunk
         return None
 
-    def fast_answer(self, query: str, top_k: int = 8):
+    def fast_answer(self, query: str, top_k: int = 8, focus: str = ""):
         """Return an accurate extractive answer for board/code questions.
 
         The 0.5B model needs ~19 tokens/s of prompt processing on the Pi 4B,
@@ -536,10 +566,30 @@ class KnowledgeBase:
         source snippet are already the answer; return them directly and keep
         the LLM for open-ended conversation.
         """
-        hits = self.search(query, top_k=top_k)
+        hits = self.search(query, top_k=max(top_k, 20), max_per_source=6)
         if not hits or hits[0].get("score", 0) < 7:
             return None
-        q_low = (query or "").lower()
+        active = (focus or query or "").strip()
+        # Ensure board fact cards are considered even when many code chunks
+        # dominate BM25.  Code snippets repeat identifiers and can otherwise
+        # push the single board card out of the top-k window.
+        q_terms = tokenize(query, expand=True)
+        board_extra = []
+        seen_ids = {h.get("id") for h in hits}
+        for idx, row in enumerate(self.docs):
+            if row.get("kind") != "board" or row.get("id") in seen_ids:
+                continue
+            score = self._score(q_terms, idx)
+            if score <= 0:
+                continue
+            item = dict(row)
+            item["score"] = score
+            item["snippet"] = _snippet(row.get("text") or "", query)
+            item["label"] = _short_source(item)
+            board_extra.append(item)
+        board_extra.sort(key=lambda h: h.get("score", 0), reverse=True)
+        hits = board_extra[:6] + hits
+        q_low = active.lower()
         want_code = bool(CODE_HINTS.search(q_low))
         want_exam = bool(EXAM_HINTS.search(query or ""))
         technical = bool(re.search(
@@ -555,24 +605,57 @@ class KnowledgeBase:
 
         # Prefer the specific module section over the short "module list" or
         # preamble cards, which otherwise win BM25 on length normalisation.
-        generic_sections = ("总览", "1. 平台身份", "2. 板载资源", "5. 竞赛常用模块清单",
+        generic_sections = ("总览", "2. 板载资源", "5. 竞赛常用模块清单",
                             "7. 调试顺序", "9. 回答口径", "11. 回答口径")
         intro = bool(re.search(r"入门|新手|上手|快速|学习路线|怎么学", query or ""))
+        module_hints = [
+            ("led", r"led", r"led|灯|点亮|pc8|pc9|pc10|pc11|pc12|pc13|pc14|pc15|pd2"),
+            ("按键", r"按键", r"按键|key|消抖|松手|pb0|pb1|pb2|pa0"),
+            ("adc", r"adc", r"adc|电位器|采样|模拟|pb12|pb15"),
+            ("pwm", r"pwm|tim15", r"pwm|占空比|tim15|pa2|pa3"),
+            ("usart", r"usart", r"usart|uart|串口|波特率|pa9|pa10|sizeof|发送|接收|中断|字符串"),
+            ("i2c", r"i2c|iic", r"i2c|iic|24c02|eeprom|pb6|pb7"),
+            ("lcd", r"lcd", r"lcd|液晶|屏幕|显示"),
+            ("rtc", r"rtc", r"rtc|实时时钟|日历"),
+        ]
+        query_modules = {
+            name for name, sec_pat, qry_pat in module_hints
+            if re.search(qry_pat, q_low)
+        }
+
+        def section_module(section: str) -> str:
+            section = (section or "").lower()
+            for name, sec_pat, _ in module_hints:
+                if re.search(sec_pat, section):
+                    return name
+            return ""
 
         def board_rank(h: dict):
             section = (h.get("meta") or {}).get("section") or ""
             if intro and "上手路径" in section:
-                return (0, -h.get("score", 0))
+                return (0, 0, -h.get("score", 0))
+            match = 0 if section_module(section) in query_modules else 1
             generic = any(section.startswith(g) for g in generic_sections)
-            return (1 if generic else 0, -h.get("score", 0))
+            return (match, 1 if generic else 0, -h.get("score", 0))
 
         board_hits.sort(key=board_rank)
-
-        if board_hits:
-            top = board_hits[0]
-            text = clean_excerpt(top.get("text") or "", 620, board=True)
+        chosen = []
+        seen_sections = set()
+        max_sections = 2 if len(query_modules) >= 2 else 1
+        for h in board_hits:
+            section = (h.get("meta") or {}).get("section") or ""
+            if section in seen_sections:
+                continue
+            seen_sections.add(section)
+            chosen.append(h)
+            if len(chosen) >= max_sections:
+                break
+        for top in chosen:
+            text = clean_excerpt(top.get("text") or "", 500 if max_sections > 1 else 620, board=True)
             if text:
-                parts.append("**板卡要点**\n" + text)
+                section = (top.get("meta") or {}).get("section") or ""
+                heading = "**板卡要点" + (f"（{section.split('/')[-1].strip()}）" if max_sections > 1 else "") + "**" + "\n"
+                parts.append(heading + text)
                 used.append(top)
 
         if want_exam and exam_hits:
@@ -591,7 +674,7 @@ class KnowledgeBase:
                 parts.append("**考点摘录**\n" + text)
                 used.append(top)
 
-        code_top = None if want_exam else self.module_code(query)
+        code_top = None if want_exam else self.module_code(active)
         if code_top is None and not want_exam and code_hits and (want_code or (board_hits and code_hits[0].get("score", 0) >= board_hits[0].get("score", 0) * 0.42) or (not board_hits and technical)):
             def code_priority(h: dict):
                 src = h.get("source") or ""
@@ -606,7 +689,7 @@ class KnowledgeBase:
                 return (p, -h.get("score", 0))
 
             seed = sorted(code_hits, key=code_priority)[0]
-            code_top = self.best_code_chunk(seed, query)
+            code_top = self.best_code_chunk(seed, active)
             code_top = dict(code_top)
             code_top["score"] = seed.get("score")
             code_top["snippet"] = _snippet(code_top.get("text") or "", query)
@@ -616,7 +699,7 @@ class KnowledgeBase:
             text = (code_top.get("text") or "").strip()
             if text:
                 if code_top.get("kind") != "ioc":
-                    text = focus_code(text, query, 700)
+                    text = focus_code(text, active, 700)
                 elif len(text) > 700:
                     text = text[:700].rsplit("\n", 1)[0] + "\n; …"
                 lang = "ini" if code_top.get("kind") == "ioc" else "c"
@@ -662,11 +745,19 @@ def focus_code(text: str, query: str, limit: int = 700) -> str:
     elif re.search(r"led|灯|点亮", q):
         anchors = ["LED_Disp", "LED_Init"]
     elif re.search(r"pwm|占空比", q):
-        anchors = ["PWM_SetDuty", "PWM_Output_TIM15_Init"]
+        if re.search(r"初始化|启动|配置|init", q):
+            anchors = ["PWM_Output_TIM15_Init", "PWM_SetDuty", "PWM_SetDuty2"]
+        else:
+            anchors = ["PWM_SetDuty", "PWM_SetDuty2", "PWM_Output_TIM15_Init"]
     elif re.search(r"usart|uart|串口", q):
         anchors = ["USART1_Init", "HAL_UART_MspInit"]
     elif re.search(r"adc|电位器|采样", q):
-        anchors = ["getADC1", "ADC1_Init"]
+        if "adc2" in q or "第二路" in q:
+            anchors = ["ADC2_Init", "getADC2", "ADC1_Init"]
+        elif re.search(r"初始化|配置|init", q):
+            anchors = ["ADC1_Init", "ADC2_Init", "getADC1"]
+        else:
+            anchors = ["getADC1", "ADC2_Init", "ADC1_Init"]
     elif re.search(r"key|按键", q):
         anchors = ["Key_Scan", "KEY_Init"]
     elif re.search(r"rtc|实时时钟", q):

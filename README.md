@@ -31,7 +31,7 @@ STM32G431（蓝桥杯 CT117E-M4）
 | M5 VLM | ✅ 基础版：SmolVLM-500M，单图 34s |
 | M6 整机联调 | ✅ 30 分钟稳定性：933 次检查 / 0 失败；最高 47.2°C |
 | M7 报告与交付 | ✅ Word 报告 + 11 页 PPT + 9 张图 + 稳定性数据 |
-| M8 蓝桥杯知识库 | ✅ 1608 片段 / 464 来源；板卡/源码/课件直答 + 0.5B RAG 回退 |
+| M8 蓝桥杯知识库 | ✅ 1610 片段 / 464 来源；板卡/源码/课件直答 + 0.5B RAG 回退 |
 | M9 双通道控制 | ✅ 8 LED 下拉控制 + 全亮/全灭；ADC1(PB12)/ADC2(PB15)；PWM1(PA2)/PWM2(PA3) |
 
 ## 3. 目录
@@ -148,6 +148,7 @@ scp pi/app/knowledge.py apple@<Pi-IP>:~/ai-terminal/pi/app/
 - 限制：图片型真题 Word/OneNote 未 OCR；F103/STC15 旧平台内容仅作原理参考，引脚以 `docs/board_facts.md` 为准。
 - 页面左下角/顶部显示知识库片段数；每条回答下方可展开资料来源。
 - 历史对话保存在浏览器 `localStorage`，刷新/重开保留；会话列表支持单条删除和“清空全部历史”。
+- 问答回归：`scripts/qa_mass.py` 186 道事实题 + `scripts/qa_stress.py` 深度/多轮/并发；详见 [测试报告](docs/qa_stress_report.md)。
 - 上下文预算：后端保留最近 4 条消息（每条 ≤600 字、总 ≤1500 字），RAG 资料 ≤700 字/3 来源，输出 ≤160 tokens；llama-server 仍为 `-c 2048`。
 
 ## 7. 关键约束

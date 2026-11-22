@@ -5,7 +5,7 @@
 
 ## 当前阶段
 
-实测评估完成；**M1–M10 全部验证**；**M8 蓝桥杯知识库已上线**：1608 片段 / 464 来源，板卡/源码/课件直答约 0.04s，开放问题才调用 Qwen2.5-0.5B；前端为“蓝桥杯 AI 助教”，附资料来源与快捷问题。**M9 板卡控制增强**：8 LED 下拉选择 + 全亮/全灭，ADC1+ADC2、PWM1+PWM2 双通道，固件 v0.3.0 已烧录。**M10**：LCD 横幅只在首次打开串口时发送，重连不再覆盖队友显示内容。**M11**：前端默认浅蓝+白，顶栏可切换浅蓝白/薄荷青/暖白橙/浅紫/深色 5 套主题，选择记忆在浏览器。**M12**：上下文扩到最近 4 条/总 1500 字、RAG 700 字/3 来源、输出 160 tokens；历史会话保存在 localStorage，支持单条删除/清空全部。
+实测评估完成；**M1–M10 全部验证**；**M8 蓝桥杯知识库已上线**：1610 片段 / 464 来源，板卡/源码/课件直答约 0.04s，开放问题才调用 Qwen2.5-0.5B；前端为“蓝桥杯 AI 助教”，附资料来源与快捷问题。**M9 板卡控制增强**：8 LED 下拉选择 + 全亮/全灭，ADC1+ADC2、PWM1+PWM2 双通道，固件 v0.3.0 已烧录。**M10**：LCD 横幅只在首次打开串口时发送，重连不再覆盖队友显示内容。**M11**：前端默认浅蓝+白，顶栏可切换浅蓝白/薄荷青/暖白橙/浅紫/深色 5 套主题，选择记忆在浏览器。**M12**：上下文扩到最近 4 条/总 1500 字、RAG 700 字/3 来源、输出 160 tokens；历史会话保存在 localStorage，支持单条删除/清空全部。**M13**：212 道问答回归全部通过，修复记忆/定义误路由、跨模块代码串味、板卡事实被源码压过等问题。
 
 ## 已完成
 
@@ -39,7 +39,7 @@
 - **开机自启完成**：`llama.service`、`vlm.service`、`ai-terminal.service` 均 enabled/active；重启验证 API **22s** 上线；eth0 固定 `192.168.49.50`；LCD 显示 IP/READY；新增 `pi/systemd/`、`scripts/install_services.sh`、`docs/课堂演示网络配置.md`。
 - **M8 知识库完成**：
   - PC 侧 `scripts/build_knowledge.py` 提取 37 份 PPT（OLE 文本原子）、3 份 PDF、3 份 DOCX、3 份 XLSX、51 个源码压缩包（仅 `.c/.h/.ioc`，过滤 HAL/CMSIS/构建产物），并加入 `docs/board_facts.md` 与本机固件。
-  - 生成 `knowledge/chunks.jsonl`（1608 片段 / 2.62MB 文本）+ `manifest.json`；`knowledge/` 已 gitignore，不上传。
+  - 生成 `knowledge/chunks.jsonl`（1610 片段 / 2.62MB 文本）+ `manifest.json`；`knowledge/` 已 gitignore，不上传。
   - `pi/app/knowledge.py`：中文 bigram + ASCII 标识符 + 同义词 BM25；板卡事实卡/本机固件加权；`/api/knowledge/status|search|reload`。
   - `/api/chat`：硬件规则路由 → 知识库直答（板卡/本机固件/官方 BSP/课件摘录）→ 0.5B RAG 回退 → 0.5B 通用回答（天气/日期有安全约束）；SSE 先发 `sources`，前端显示“知识库直答/RAG 生成”和可展开来源。
   - 前端：品牌改为“蓝桥杯 AI 助教”、CT117E-M4 副标题、8 个快捷问题、知识库片段数、来源卡片；硬件控制面板保留。
@@ -53,6 +53,7 @@
 - **M10 LCD 覆盖修复**：串口服务原来每次 open/重连都发 `LCDCLR` + IP + `READY`，会覆盖队友显示内容；改为仅在开机后 180s 内首次打开时发横幅，重连/服务重启跳过。新增 `open_count/banner_count/last_open_at` 状态和 `~/ai-terminal/logs/serial.log`；重连与 6 并发 LCD 测试通过。
 - **M11 前端配色**：默认浅蓝+白；顶栏“配色”下拉可切换浅蓝白/薄荷青/暖白橙/浅紫/深色；颜色变量覆盖聊天气泡、代码块、来源卡片、控制面板；选择存 `localStorage`。静态资源使用 `?v=0.8.1` 避免旧缓存。
 - **M12 上下文与历史**：后端最多 4 条历史（每条 ≤600 字、总 ≤1500 字），RAG 3 来源/700 字，输出 ≤160 tokens；前端会话历史继续存 `localStorage`，每条带删除按钮，另有“清空全部历史”。实测 4 轮历史 prompt_n=674（cache_n=256），未超 2048；3 轮数字记忆测试回答 7319。
+- **M13 高强度问答**：`scripts/qa_mass.py` 186 道事实题（31 组×6 问法）+ 19 道深度题 + 6 组多轮 + 12 并发 = **212/212 通过**；新增命令速查/ST-Link/ADC 滤波/RTC 板卡事实；修复记忆问题被直答误判、定义题拼接历史、LED→PWM 代码串模块、源码压过板卡事实、跨模块只答一个等问题。报告见 `docs/qa_stress_report.md`。
 - **局域网/跨网访问**：
   - 局域网：Pi `wlan0=192.168.1.165`（OpenWrt），其他电脑同一 Wi-Fi 打开 `http://192.168.1.165:8000/`；`eth0=192.168.49.50` 仅直连维护。面板/LCD 自动显示当前 Wi-Fi IP。
   - 跨网：Cloudflare quick tunnel 已运行；当前 `https://consensus-unlimited-sword-poly.trycloudflare.com`；公网请求需 Basic 密码（`~/.ai_terminal_access`，不入 Git），局域网访问免密。
@@ -86,7 +87,7 @@
 | VLM 输入 | 网页上传图片，不做 Pi 摄像头 | 当前无摄像头；上传图片足够课程演示 |
 | 模型分工 | 规则路由硬件命令；RAG 直答板卡/源码；0.5B 只处理开放问题 | Pi 4B 算力有限；0.5B 长上下文约 19 tok/s，直答可避免 30–80s 延迟 |
 | LLM 边界 | 硬件动作只走白名单规则；LLM 不直接操作硬件 | 防止幻觉直接控制板子 |
-| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 | 无需向量库/额外服务；1608 片段查询 3ms |
+| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 | 无需向量库/额外服务；1610 片段查询 3ms |
 | 前端 | 无构建 HTML/CSS/JS，Pi 静态托管 | Pi 没装 Node；浏览器已验证 |
 | 烧录安全 | 只烧 manifest 内固件；烧录前备份 | 已实际备份 128KB，可作为回滚依据 |
 
@@ -138,7 +139,7 @@
 | 2026-11-18 | M6 稳定性 | `scripts/stability_test.py --duration 1800` | 1801.4s / **933 次检查 / 0 失败**；最高 47.2°C；最低空闲 6251MB |
 | 2026-11-18 | M7 Word | `python scripts/build_report_docx.py` | 478KB；7 表；9 图 |
 | 2026-11-18 | M7 PPT | `python scripts/build_ppt.py` | 当前 11 页 |
-| 2026-11-19 | M8 构建 | `python scripts/build_knowledge.py` | 1608 片段 / 464 来源 / 2.62MB 文本 |
+| 2026-11-19 | M8 构建 | `python scripts/build_knowledge.py` | 1610 片段 / 464 来源 / 2.62MB 文本 |
 | 2026-11-19 | M8 检索 | `/api/knowledge/search?q=LED` | 3ms；板卡事实卡/本机固件命中 |
 | 2026-11-19 | M8 直答 | `/api/chat` LED/I2C/PWM/USART/LCD | **0.04s**；来源 2 条 |
 | 2026-11-19 | M8 课件 | NVIC / 输入捕获 | 0.05s；PPT 摘录 / 代码 + PPT |
@@ -163,4 +164,7 @@
 | 2026-11-22 | M12 上下文 | 4 轮历史 + 当前问题 | `prompt_n=674`、`cache_n=256`，未超 2048 |
 | 2026-11-22 | M12 记忆 | 3 轮“记住 7319” | 回答 `7319`；`prompt_n=146` |
 | 2026-11-22 | M12 历史 | 新建/删除会话、刷新 | localStorage 同步；单条删除成功 |
+| 2026-11-22 | M13 快速 | 186 道事实题（fast_only） | **186/186**；0.02–0.05s |
+| 2026-11-22 | M13 深度 | 19 道开放/跨模块题 | **19/19**；含 ADC 滤波、LCD+RTC |
+| 2026-11-22 | M13 多轮/并发 | 6 组多轮 + 12 并发 | **6/6 + 1/1**；记忆 0.01s、并发 0.33s |
 | — | PWM 物理波形 | PA2/PA3 万用表/示波器 | 待 HIL（0/50/100% ≈ 0/1.65/3.3V） |

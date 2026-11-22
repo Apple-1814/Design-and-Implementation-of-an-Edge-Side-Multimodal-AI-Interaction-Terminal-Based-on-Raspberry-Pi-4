@@ -39,7 +39,7 @@
 | 固件 | C + STM32CubeG4 HAL，Keil MDK 5（例程为 `MDK-ARM V5`） | 已验证 0 error / 0 warning |
 | 烧录 | 树莓派上 **pyOCD + Keil STM32G4 DFP**，经 CMSIS-DAP SWD；PC Keil 兜底 | 已验证 |
 | 推理 | llama.cpp（GGUF Q4/Q8），Qwen2.5-0.5B，SmolVLM-500M | 已验证 7.26 tok/s / 34s 单图 |
-| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 + 模型回退 | 1608 片段 / 464 来源 |
+| 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 + 模型回退 | 1610 片段 / 464 来源 |
 | 后端 | Python 3.8 + FastAPI + uvicorn + pyserial | 已验证 |
 | 前端 | 无构建 HTML/CSS/JS，Pi 静态托管 | 已验证 |
 | 通信 | 浏览器 ⇄ Pi：HTTP/SSE；Pi ⇄ STM32：UART 9600 8N1 行协议 | 已验证 |

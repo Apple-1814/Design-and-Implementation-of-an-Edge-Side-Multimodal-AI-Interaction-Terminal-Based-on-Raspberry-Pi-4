@@ -115,10 +115,10 @@
 
 | 项 | 命令/操作 | 结果 |
 |---|---|---|
-| 构建 | `python scripts/build_knowledge.py` | 1608 片段 / 464 来源 / 2,627,820 chars |
+| 构建 | `python scripts/build_knowledge.py` | 1610 片段 / 464 来源 / 2,628,717 chars |
 | 覆盖 | PPT/PDF/DOCX/XLSX/源码压缩包 | 37 PPT、3 PDF、3 DOCX、3 XLSX、51 个源码包；过滤 HAL/CMSIS/构建产物 |
 | 索引 | `knowledge/chunks.jsonl` + `manifest.json` | 3.5MB JSONL；sha256 见 manifest |
-| 加载 | `GET /api/knowledge/status` | loaded=true；kinds: board 19 / code 921 / ioc 138 / ppt 66 / pdf 447 / docx 3 / xlsx 14 |
+| 加载 | `GET /api/knowledge/status` | loaded=true；kinds: board 21 / code 921 / ioc 138 / ppt 66 / pdf 447 / docx 3 / xlsx 14 |
 | 检索 | `GET /api/knowledge/search?q=LED怎么点亮` | 约 3ms；板卡事实卡 3.1 + 本机 `bsp_led.c` |
 | 冒烟测试 | `python scripts/test_knowledge.py` | 10 个问答 PASS + 负例 PASS |
 | 直答 | `POST /api/chat` LED/I2C/PWM/USART/LCD | **0.04s**；`mode=knowledge`；2 条来源 |
@@ -180,6 +180,17 @@
 | 单条删除 | 会话列表 × + confirm | 列表和 localStorage 同步减少 |
 | 清空全部 | “清空全部历史” + confirm | 保留一个空白新会话 |
 
+### M13 高强度问答测试（2026-11-22）
+
+| 组别 | 数量 | 结果 |
+|---|---:|---|
+| 快速事实（31 组×6 问法） | 186 | **186/186**，0.02–0.05s |
+| 深度问题 | 19 | **19/19**，含 ADC 滤波、LCD+RTC 跨模块 |
+| 多轮 | 6 | **6/6**，7319 记忆 0.01s、PWM/USART 追问 0.04s |
+| 并发 | 12 请求 | **0.33s**，最大 0.23s |
+
+修复：记忆问题被直答误判、定义题拼接历史、LED→PWM 代码串模块、源码压过板卡事实、跨模块只答一个。报告见 `docs/qa_stress_report.md`。
+
 ### 已知现象
 
 - 板载 VCP 只接受**单次持久会话**；频繁 open/close 会导致写阻塞（`rc=124`）。
@@ -204,5 +215,5 @@ sudo sh -c 'echo 0 > /sys/bus/usb/devices/1-1.1/authorized; sleep 1; echo 1 > /s
 | M5 | SmolVLM 上传图片问答 | **基础验证**：单图 34.11s，返回 `HELLO` |
 | M6 | 整机联调 30 分钟稳定性 | **已验证**：933 次检查 / 0 失败；最高 47.2°C |
 | M7 | 报告、图表、演示、PPT | **Word/PPT/图表/稳定性数据已完成** |
-| M8 | 蓝桥杯知识库/RAG/助教前端 | **已验证**：1608 片段；直答 0.04s；模型回退 20–60s |
+| M8 | 蓝桥杯知识库/RAG/助教前端 | **已验证**：1610 片段；直答 0.04s；模型回退 20–60s |
 | M9 | 8 LED / ADC×2 / PWM×2 | **已验证**：ADC1/2、PWM1/2、LED 全控；物理波形待 HIL |

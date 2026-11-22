@@ -13,9 +13,10 @@
 ## 1. 平台身份
 
 - 竞赛平台：**CT117E-M4 嵌入式竞赛实训平台**（北京国信长天）。
-- 主控：**STM32G431RBT6**，LQFP64，ARM Cortex-M4F，128KB Flash，32KB SRAM，最高 80MHz。
+- 主控：**STM32G431RBT6**，LQFP64，ARM Cortex-M4F，128KB Flash，32KB SRAM；主频最高 **80MHz**。
 - 开发环境：Keil MDK V5（竞赛推荐）+ STM32CubeMX；HAL 库；板载 **CMSIS-DAP** 调试器（SWD）。
 - 板载 DAPLink 同时提供 USB 转串口，默认连接到 **USART1（PA9/PA10）**。
+- 调试接口为 **SWD**：SWCLK、SWDIO、GND（NRST 可选）；调试器是 **CMSIS-DAP，不是 ST-Link**。
 - 供电：USB 5V；调试/下载使用 CN2（USB Type-B），USB 设备接口为 CN5。
 
 ## 2. 板载资源（产品手册第 1 章）
@@ -63,6 +64,7 @@
 - 读取流程：`HAL_ADC_Start()` → `HAL_ADC_PollForConversion(..., 10)` → `HAL_ADC_GetValue()` → `HAL_ADC_Stop()`。
 - 返回值 0–4095，对应 0–3.3V（参考 VREF+）。
 - 产品手册 J11/J12 分别引出 PB15/PB12 电位器分压；两路可同时使用。
+- 常用软件滤波：连续采样 8/16 次取平均、5/7 点中值滤波、一阶低通 `y += (x-y)/N`；滤波放主循环或定时任务，避免在 ADC 中断里做长循环。
 
 ### 3.4 PWM（TIM15 双通道）
 
@@ -97,6 +99,13 @@
   - 在定时器中断里刷屏会导致闪烁或卡死，显示放在主循环；
   - 不要套用 F103 的 FSMC 写法，G431 板载 LCD 是 GPIO 并口驱动；
   - 显示中文要使用官方字库/取模，不能直接传 UTF-8 字节。
+
+### 3.8 RTC（实时时钟）
+
+- RTC 使用 LSE 32.768kHz（板载晶振）或 LSI；CubeMX 中开启 RTC，HAL 用 `HAL_RTC_Init()`。
+- 读取顺序：先 `HAL_RTC_GetTime()`，再 `HAL_RTC_GetDate()`；否则日期可能不刷新。
+- 设置时间/日期用 `HAL_RTC_SetTime()` / `HAL_RTC_SetDate()`，注意 BCD 格式。
+- 竞赛常用：RTC 日历、秒中断、LCD 显示日期时间；首次配置后等待时钟稳定。
 
 ## 4. 时钟与工程模板
 
@@ -177,3 +186,14 @@
 - FastAPI、BM25 知识库、串口服务运行在 Pi；STM32G431 通过板载 CMSIS-DAP 的 USB CDC 虚拟串口 `/dev/ttyACM0` 连接。
 - **Pi 不是 STM32，也不运行 Keil**：Keil 工程在 PC 编译生成 `.hex`，可在 Pi 上用 pyOCD 烧录到 STM32。
 - 树莓派与 STM32 的分工：Pi 负责推理、知识库、Web 服务；STM32 负责实时外设控制（LED/LCD/ADC/PWM）。
+
+## 13. UART 命令速查
+
+- `PING` → `OK PONG`
+- `LED?` → `OK LED <hex>`；`LED <id> <0|1>` → `OK LED <id> <0|1>`（id 1–8）
+- `LEDALL <hex>` → `OK LEDALL <hex>`
+- `LCD <line> <text>` → `OK LCD`（line 0–9）；`LCDCLR` → `OK LCDCLR`
+- `ADC?` → `OK ADC <raw>`（ADC1/PB12）；`ADC2?` → `OK ADC2 <raw>`（ADC2/PB15）
+- `PWM <ch> <duty>` → `OK PWM <ch> <duty>`（ch 1/2，duty 0–100）
+- `PWM?` → `OK PWM 1 <duty>`；`PWM2?` → `OK PWM 2 <duty>`
+- 错误：`ERR UNKNOWN`、`ERR LED_ID`、`ERR LCD_LINE`、`ERR PWM_ARG`、`ERR OVERFLOW`
