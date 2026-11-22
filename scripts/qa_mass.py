@@ -178,6 +178,12 @@ DEEP = [
     {"id": "cross_adc_pwm", "messages": [{"role": "user", "content": "ADC1 和 PWM1 分别是什么引脚？"}], "must": ["PB12", "PA2"]},
     {"id": "cross_lcd_rtc", "messages": [{"role": "user", "content": "LCD 和 RTC 怎么配置？"}], "must": ["LCD", "RTC"]},
     {"id": "counts", "messages": [{"role": "user", "content": "板子有几路 ADC 和 PWM？"}], "must": ["ADC", "PWM"]},
+    {"id": "concept_interrupt", "messages": [{"role": "user", "content": "什么是中断？"}], "must": ["中断", "ISR"]},
+    {"id": "concept_pwm", "messages": [{"role": "user", "content": "PWM 是什么？"}], "must": ["占空比"]},
+    {"id": "concept_i2c", "messages": [{"role": "user", "content": "I2C 是什么？"}], "must": ["SCL", "SDA"]},
+    {"id": "faq_sky", "messages": [{"role": "user", "content": "为什么天是蓝的？"}], "must": ["瑞利散射"]},
+    {"id": "faq_code", "messages": [{"role": "user", "content": "代码是什么？"}], "must": ["指令"]},
+    {"id": "board_usart1", "messages": [{"role": "user", "content": "什么是 USART1？"}], "must": ["PA9", "PA10"]},
 ]
 
 

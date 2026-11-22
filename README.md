@@ -144,11 +144,12 @@ scp pi/app/knowledge.py apple@<Pi-IP>:~/ai-terminal/pi/app/
 
 - 覆盖：章节 PPT、CT117E-M4 产品手册、实训指导书、真题汇编目录、考点统计、官方模块源码、历年真题工程、本机验证固件、`docs/board_facts.md`。
 - 检索：中文 bigram + ASCII 标识符 + 同义词，BM25；`/api/knowledge/search?q=...` 可单独测试。
-- 问答策略：硬件命令规则路由 → 知识库直答（板卡/源码/课件摘录）→ 0.5B RAG/通用回答；天气只说明无实时数据，日期用系统时间。
+- 问答策略：硬件命令规则路由 → 知识库直答（板卡/源码/课件摘录）→ 概念/对比/FAQ 确定性词条 → 0.5B RAG/通用回答；天气只说明无实时数据，日期用系统时间。
+- 概念词条覆盖中断/边沿/定时器/PWM/ADC/I2C/SPI/RTC/DMA/NVIC/指针/栈等 40 个术语；未收录定义会明确说明，不交给 0.5B 编造。
 - 限制：图片型真题 Word/OneNote 未 OCR；F103/STC15 旧平台内容仅作原理参考，引脚以 `docs/board_facts.md` 为准。
 - 页面左下角/顶部显示知识库片段数；每条回答下方可展开资料来源。
 - 历史对话保存在浏览器 `localStorage`，刷新/重开保留；会话列表支持单条删除和“清空全部历史”。
-- 问答回归：`scripts/qa_mass.py` 186 道事实题 + `scripts/qa_stress.py` 深度/多轮/并发；详见 [测试报告](docs/qa_stress_report.md)。
+- 问答回归：`scripts/qa_mass.py` 211 题（186 事实 + 25 深度/概念）、`scripts/qa_answers.py` 219 题（200 定义变体 + 6 对比 + 5 FAQ + 5 板卡 + 3 开放）、`scripts/qa_stress.py` 多轮/并发，合计 **437/437**；详见 [测试报告](docs/qa_stress_report.md)。
 - 上下文预算：后端保留最近 4 条消息（每条 ≤600 字、总 ≤1500 字），RAG 资料 ≤700 字/3 来源，输出 ≤160 tokens；llama-server 仍为 `-c 2048`。
 
 ## 7. 关键约束

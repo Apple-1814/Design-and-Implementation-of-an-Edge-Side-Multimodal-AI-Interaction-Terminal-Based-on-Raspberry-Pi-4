@@ -183,14 +183,14 @@ SLOW = [
     {
         "id": "code_definition",
         "messages": [{"role": "user", "content": "代码是什么？"}],
-        "mode": "llm",
+        "mode": "concept",
         "must": ["代码"],
         "must_not": ["范围"],
     },
     {
         "id": "weather",
         "messages": [{"role": "user", "content": "天气怎么样？"}],
-        "mode": "llm",
+        "mode": "weather",
         "must": ["无法获取"],
         "must_not": ["℃", "北京", "2022"],
     },
