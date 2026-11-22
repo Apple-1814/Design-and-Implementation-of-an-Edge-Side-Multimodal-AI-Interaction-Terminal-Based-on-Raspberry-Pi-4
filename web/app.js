@@ -51,8 +51,25 @@ function renderSessions() {
   state.sessions.forEach((s) => {
     const el = document.createElement("div");
     el.className = "session-item" + (s.id === state.currentId ? " active" : "");
-    el.textContent = s.title || "新对话";
     el.title = s.title || "新对话";
+
+    const title = document.createElement("span");
+    title.className = "session-title";
+    title.textContent = s.title || "新对话";
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "session-del";
+    del.textContent = "×";
+    del.title = "删除这个对话";
+    del.setAttribute("aria-label", "删除这个对话");
+    del.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteSession(s.id);
+    });
+
+    el.appendChild(title);
+    el.appendChild(del);
     el.onclick = () => {
       state.currentId = s.id;
       renderSessions();
@@ -60,6 +77,39 @@ function renderSessions() {
     };
     sessionListEl.appendChild(el);
   });
+  const clearAll = $("#clearAllHistory");
+  if (clearAll) {
+    clearAll.hidden = !(state.sessions.length > 1 || state.sessions.some((s) => s.messages.length));
+  }
+}
+
+function deleteSession(id) {
+  const target = state.sessions.find((s) => s.id === id);
+  if (!target) return;
+  const name = target.title || "新对话";
+  if (!window.confirm(`删除对话“${name}”？此操作不可撤销。`)) return;
+
+  state.sessions = state.sessions.filter((s) => s.id !== id);
+  if (!state.sessions.length) {
+    const s = { id: uid(), title: "新对话", messages: [], createdAt: Date.now() };
+    state.sessions = [s];
+    state.currentId = s.id;
+  } else if (state.currentId === id) {
+    state.currentId = state.sessions[0].id;
+  }
+  saveSessions();
+  renderSessions();
+  renderMessages();
+}
+
+function clearAllHistory() {
+  if (!window.confirm("清空全部历史对话？此操作不可撤销。")) return;
+  const s = { id: uid(), title: "新对话", messages: [], createdAt: Date.now() };
+  state.sessions = [s];
+  state.currentId = s.id;
+  saveSessions();
+  renderSessions();
+  renderMessages();
 }
 
 function escapeHtml(text) {
@@ -154,7 +204,7 @@ function thinkingHtml(msg) {
   const label = modelMode ? "本地模型思考中" : "正在检索资料";
   const wait = elapsed ? ` 已等待 ${elapsed}s` : "";
   const note = modelMode
-    ? "0.5B 本地模型可能需要 20–30 秒，请稍候"
+    ? "0.5B 本地模型可能需要 20–60 秒，请稍候"
     : "知识库直答通常 1 秒内完成";
   return `<p class="thinking">${label}…${wait}<br><span>${note}</span></p>`;
 }
@@ -500,6 +550,8 @@ $("#newChat").addEventListener("click", () => {
   renderMessages();
   inputEl.focus();
 });
+
+$("#clearAllHistory").addEventListener("click", clearAllHistory);
 
 $("#clearChat").addEventListener("click", () => {
   const session = currentSession();

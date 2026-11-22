@@ -10,7 +10,7 @@
         localStorage.getItem("ai-terminal-theme-v1") || "light";
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="style.css?v=0.8.1">
+  <link rel="stylesheet" href="style.css?v=0.8.3">
 </head>
 <body>
   <div class="app">
@@ -24,6 +24,7 @@
       </div>
       <button class="new-chat" id="newChat">＋ 新建对话</button>
       <div class="session-list" id="sessionList"></div>
+      <button class="history-clear" id="clearAllHistory" hidden>清空全部历史</button>
       <div class="sidebar-foot">
         <span class="dot" id="serialDot"></span>
         <span id="serialText">串口检测中…</span>
@@ -74,7 +75,7 @@
             </svg>
           </button>
         </div>
-        <div class="hint">本地知识库 RAG · 板卡问题通常秒答 · 开放问题由本地模型生成，可能需要 20–30 秒</div>
+        <div class="hint">本地知识库 RAG · 板卡问题通常秒答 · 开放问题由本地模型生成，可能需要 20–60 秒</div>
       </div>
     </main>
 
@@ -177,6 +178,6 @@
       <div class="panel-log" id="panelLog"></div>
     </aside>
   </div>
-  <script src="app.js?v=0.8.1"></script>
+  <script src="app.js?v=0.8.3"></script>
 </body>
 </html>

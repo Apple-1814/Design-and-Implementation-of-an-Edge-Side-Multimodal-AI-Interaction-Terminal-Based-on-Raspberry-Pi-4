@@ -756,10 +756,23 @@ def build_messages(history: List[dict], question: str, context: str,
     # retrieval query already includes the previous question for follow-ups,
     # so keep only the immediately preceding user turn when it adds context.
     recent = [m for m in history if m.get("role") in ("user", "assistant") and m.get("content")]
-    recent = recent[-2:]
+    recent = recent[-4:]
     if recent and recent[-1].get("role") == "user" and recent[-1].get("content", "").strip() == question.strip():
         recent = recent[:-1]
-    msgs.extend({"role": m["role"], "content": m["content"][:300]} for m in recent)
+    # Keep up to four recent messages, each at most 600 chars, but cap the
+    # total history at 1500 chars: the llama-server runs with -c 2048.
+    selected = []
+    budget = 1500
+    for m in reversed(recent):
+        content = m["content"][:600]
+        if len(content) > budget:
+            content = content[:budget]
+        if content:
+            selected.append({"role": m["role"], "content": content})
+            budget -= len(content)
+        if budget <= 0:
+            break
+    msgs.extend(reversed(selected))
 
     if context:
         user = (

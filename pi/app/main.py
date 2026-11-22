@@ -24,7 +24,7 @@ from .knowledge import build_messages, kb
 from .serial_service import SerialService
 from .tool_router import route_tool
 
-APP_VERSION = "0.8.0"
+APP_VERSION = "0.8.1"
 LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
 VLM_URL = "http://127.0.0.1:8081/v1/chat/completions"
 
@@ -421,7 +421,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
     context, sources = ("", [])
     if req.use_knowledge:
         context, sources = await run_in_threadpool(
-            kb.build_context, retrieval_query, 2, 500
+            kb.build_context, retrieval_query, 3, 700
         )
 
     if req.use_knowledge and not context:
@@ -470,7 +470,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         "model": "qwen",
         "messages": messages,
         "stream": True,
-        "max_tokens": min(req.max_tokens, 128),
+        "max_tokens": min(req.max_tokens, 160),
         "temperature": req.temperature,
     }
 

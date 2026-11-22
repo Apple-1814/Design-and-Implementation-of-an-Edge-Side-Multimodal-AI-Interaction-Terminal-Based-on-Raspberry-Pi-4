@@ -1034,3 +1034,61 @@ html { color-scheme: light; }
   .theme-picker > span { display: none; }
   .theme-picker select { max-width: 88px; }
 }
+
+/* ---------- history management ---------- */
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.session-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-del {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: .45;
+}
+
+.session-item:hover .session-del,
+.session-item.active .session-del,
+.session-del:hover {
+  opacity: 1;
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+}
+
+.history-clear {
+  margin: 0 14px 8px;
+  padding: 6px 8px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.history-clear:hover {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 35%, var(--line));
+}
