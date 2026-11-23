@@ -653,6 +653,52 @@ class KnowledgeBase:
             return chunk
         return None
 
+    def board_fact_context(self, query: str, budget: int = 4000) -> str:
+        """Select the authoritative board-card sections for a cloud prompt."""
+        q = (query or "").lower()
+        modules = [
+            ("led", r"led|灯", r"led|灯|点亮|pc8|pc9|pc10|pc11|pc12|pc13|pc14|pc15|pd2"),
+            ("按键", r"按键", r"按键|key|消抖|松手|pb0|pb1|pb2|pa0"),
+            ("adc", r"adc", r"adc|电位器|采样|模拟|pb12|pb15"),
+            ("pwm", r"pwm|tim15|定时器", r"pwm|占空比|tim15|定时器|tim|pa2|pa3"),
+            ("usart", r"usart", r"usart|uart|串口|波特率|pa9|pa10|sizeof|发送|接收|中断|字符串"),
+            ("i2c", r"i2c|iic", r"i2c|iic|24c02|eeprom|pb6|pb7"),
+            ("lcd", r"lcd", r"lcd|液晶|屏幕|显示"),
+            ("rtc", r"rtc", r"rtc|实时时钟|日历"),
+        ]
+        wanted = [(name, sec_pat) for name, sec_pat, qry_pat in modules if re.search(qry_pat, q)]
+        if not wanted:
+            return ""
+        chosen = []
+        seen = set()
+        for name, sec_pat in wanted:
+            for d in self.docs:
+                if d.get("kind") != "board":
+                    continue
+                section = (d.get("meta") or {}).get("section") or ""
+                if not re.search(sec_pat, section, re.I):
+                    continue
+                if section in seen:
+                    continue
+                seen.add(section)
+                chosen.append(d)
+                break
+            if len(chosen) >= 2:
+                break
+        parts = []
+        used = 0
+        for d in chosen:
+            text = clean_excerpt(d.get("text") or "", 1500, board=True)
+            if not text:
+                continue
+            section = (d.get("meta") or {}).get("section") or d.get("title") or "板卡事实卡"
+            block = f"### {section}\n{text}"
+            if used + len(block) > budget and parts:
+                break
+            parts.append(block)
+            used += len(block)
+        return "\n\n".join(parts)
+
     def fast_answer(self, query: str, top_k: int = 8, focus: str = ""):
         """Return an accurate extractive answer for board/code questions.
 
@@ -958,9 +1004,12 @@ SYSTEM_PROMPT = """你是蓝桥杯嵌入式 AI 助教，专精 CT117E-M4（STM32
 CLOUD_SYSTEM_PROMPT = """你是蓝桥杯嵌入式 AI 助教，专精 CT117E-M4（STM32G431RBT6，Keil + CubeMX + HAL），现在由云端大模型驱动。
 回答要求：
 - 保持“蓝桥杯 AI 助教”的身份，不要自称通用聊天机器人。
-- 优先依据【检索资料】回答；资料覆盖板卡、外设、官方源码、课件和真题。
+- 优先依据【检索资料】回答；资料覆盖板卡、外设、官方源码、课件和真题。资料与问题无关时忽略，不要强行引用。
+- 涉及 CT117E-M4 的具体引脚/外设时，只以资料中“板卡事实卡 / 本机实测 / 本机固件”为准；F103/STC15/旧平台例程只作原理参考，禁止把旧平台引脚当成本板固定接线。资料冲突时以板卡事实卡为准。
+- 板卡引脚题先列“板载固定引脚”，再说明“例程示例/扩展接口”；不确定的引脚要明确说不确定。
 - 有资料时在句末标 [1][2]；没有资料时用通用知识回答，并说明不确定，不要编造引脚或寄存器。
 - 先给结论，再给关键步骤/代码；板卡事实要具体到引脚、寄存器或函数名。
+- 没有联网能力：天气问题只能说“我无法获取实时天气，请查看手机天气”，不得编造温度/城市；日期时间用系统提供的当前时间。
 - 中文回答，条理清晰，代码用 Markdown；不确定时建议查官方资源包。"""
 
 
@@ -1158,7 +1207,7 @@ def build_messages(history: List[dict], question: str, context: str,
     """Build a compact Qwen prompt: system + at most one prior turn + context."""
     now = datetime.now()
     weekdays = "一二三四五六日"
-    current = f"{now.year}年{now.month}月{now.day}日 星期{weekdays[now.weekday()]}"
+    current = f"{now.year}年{now.month}月{now.day}日 星期{weekdays[now.weekday()]} {now:%H:%M}"
     system_prompt = CLOUD_SYSTEM_PROMPT if provider == "cloud" else SYSTEM_PROMPT
     msgs: List[dict] = [{
         "role": "system",
@@ -1168,15 +1217,16 @@ def build_messages(history: List[dict], question: str, context: str,
     # retrieval query already includes the previous question for follow-ups,
     # so keep only the immediately preceding user turn when it adds context.
     recent = [m for m in history if m.get("role") in ("user", "assistant") and m.get("content")]
-    recent = recent[-4:]
+    recent = recent[-10:] if provider == "cloud" else recent[-4:]
     if recent and recent[-1].get("role") == "user" and recent[-1].get("content", "").strip() == question.strip():
         recent = recent[:-1]
-    # Keep up to four recent messages, each at most 600 chars, but cap the
-    # total history at 1500 chars: the llama-server runs with -c 2048.
+    # Cloud models can afford more history; the local 1.5B keeps a small
+    # prompt so it stays responsive on the Pi.
     selected = []
-    budget = 1500
+    budget = 6000 if provider == "cloud" else 1500
+    per_message = 2000 if provider == "cloud" else 600
     for m in reversed(recent):
-        content = m["content"][:600]
+        content = m["content"][:per_message]
         if len(content) > budget:
             content = content[:budget]
         if content:

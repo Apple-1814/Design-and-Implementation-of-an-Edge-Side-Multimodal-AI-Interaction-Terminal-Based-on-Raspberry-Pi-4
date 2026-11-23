@@ -10,7 +10,7 @@
         localStorage.getItem("ai-terminal-theme-v1") || "light";
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="style.css?v=0.10.2">
+  <link rel="stylesheet" href="style.css?v=0.11.1">
 </head>
 <body>
   <div class="app">
@@ -249,8 +249,8 @@
         <button class="modal-close" id="cloudClose" type="button" aria-label="关闭">×</button>
       </div>
       <p class="modal-note">
-        OpenAI 兼容（DeepSeek / OpenAI / 通义）或 Anthropic 兼容（Claude / MiniMax）接口。启用后，云端模型会以“蓝桥杯 AI 助教”身份回答，并优先使用本地知识库检索结果。
-        引脚/命令/板卡事实等高频问题仍走本地确定性直答，其余问题交给云端模型，兼顾速度与准确。
+        OpenAI 兼容（DeepSeek / OpenAI / 通义）或 Anthropic 兼容（Claude / MiniMax）接口。启用后，除硬件命令外，所有问答都交给云端模型；板卡事实卡和本地知识库检索结果会一并提供，回答保持“蓝桥杯 AI 助教”身份。
+        思考强度可调：低=简短结论，中=结论+步骤，高=分析+推导+易错点。
         <b>API Key 只保存在当前页面内存</b>，刷新或关闭标签页后清除，不写入服务器文件或日志。
       </p>
       <label class="modal-field">
@@ -258,6 +258,14 @@
         <select id="cloudStyle">
           <option value="openai">OpenAI 兼容（DeepSeek / OpenAI / 通义）</option>
           <option value="anthropic">Anthropic 兼容（Claude / MiniMax）</option>
+        </select>
+      </label>
+      <label class="modal-field">
+        <span>思考强度</span>
+        <select id="cloudReasoning">
+          <option value="low">低 · 直接给结论，回答更短更快</option>
+          <option value="medium" selected>中 · 结论 + 关键步骤（默认）</option>
+          <option value="high">高 · 分析 + 推导 + 易错点，回答更长</option>
         </select>
       </label>
       <label class="modal-field">
@@ -285,7 +293,7 @@
     </div>
   </div>
 
-  <script src="guides.js?v=0.10.2"></script>
-  <script src="app.js?v=0.10.2"></script>
+  <script src="guides.js?v=0.11.1"></script>
+  <script src="app.js?v=0.11.1"></script>
 </body>
 </html>

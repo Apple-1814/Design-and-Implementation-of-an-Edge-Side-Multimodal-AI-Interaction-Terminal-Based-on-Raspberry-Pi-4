@@ -20,9 +20,11 @@ let questionHistoryCursor = -1;
 let questionHistoryDraft = "";
 
 const CLOUD_STORAGE_KEY = "ai-terminal-cloud-v1";
+const CLOUD_REASONING_LABEL = { low: "低", medium: "中", high: "高" };
 const cloudState = {
   enabled: false,
   apiStyle: "openai",
+  reasoning: "medium",
   baseUrl: "https://api.deepseek.com/v1",
   model: "deepseek-chat",
   apiKey: "",
@@ -33,6 +35,9 @@ function loadCloudConfig() {
     const saved = JSON.parse(localStorage.getItem(CLOUD_STORAGE_KEY) || "{}");
     if (saved.apiStyle === "anthropic" || saved.apiStyle === "openai") {
       cloudState.apiStyle = saved.apiStyle;
+    }
+    if (saved.reasoning === "low" || saved.reasoning === "medium" || saved.reasoning === "high") {
+      cloudState.reasoning = saved.reasoning;
     }
     if (saved.baseUrl) cloudState.baseUrl = saved.baseUrl;
     if (saved.model) cloudState.model = saved.model;
@@ -47,18 +52,21 @@ function updateCloudButton() {
   btn.title = on ? `云端模型：${cloudState.model}` : "云端模型设置";
   const pill = document.querySelector(".model-pill");
   if (pill) {
-    pill.textContent = on ? `云端 · ${cloudState.model}` : "Qwen2.5-1.5B · 本地 RAG";
+    pill.textContent = on
+      ? `云端 · ${cloudState.model} · ${CLOUD_REASONING_LABEL[cloudState.reasoning]}强度`
+      : "Qwen2.5-1.5B · 本地 RAG";
   }
   const hint = document.querySelector(".composer-wrap .hint");
   if (hint) {
     hint.textContent = on
-      ? `云端模型 ${cloudState.model} 已启用 · 引脚/事实仍本地直答 · Key 仅当前页面`
+      ? `云端模型 ${cloudState.model} 已启用 · 除硬件命令外所有问答走云端 · Key 仅当前页面`
       : "本地知识库 RAG · 板卡问题通常秒答 · 开放问题由本地模型生成，可能需要 40–120 秒";
   }
 }
 
 function openCloudModal() {
   $("#cloudStyle").value = cloudState.apiStyle;
+  $("#cloudReasoning").value = cloudState.reasoning;
   $("#cloudBase").value = cloudState.baseUrl;
   $("#cloudModel").value = cloudState.model;
   $("#cloudKey").value = cloudState.apiKey;
@@ -66,7 +74,7 @@ function openCloudModal() {
   $("#cloudTestResult").textContent = "";
   $("#cloudTestResult").className = "modal-result";
   $("#cloudStatus").textContent = cloudState.enabled
-    ? `已启用：${cloudState.model || "未命名模型"}`
+    ? `已启用：${cloudState.model || "未命名模型"} · ${CLOUD_REASONING_LABEL[cloudState.reasoning]}强度`
     : "未启用";
   $("#cloudModal").hidden = false;
 }
@@ -79,6 +87,7 @@ function cloudFormValue() {
   return {
     enabled: true,
     api_style: $("#cloudStyle").value,
+    reasoning: $("#cloudReasoning").value,
     base_url: $("#cloudBase").value.trim(),
     model: $("#cloudModel").value.trim(),
     api_key: $("#cloudKey").value,
@@ -88,12 +97,14 @@ function cloudFormValue() {
 function applyCloudForm(enabled) {
   const cfg = cloudFormValue();
   cloudState.apiStyle = cfg.api_style;
+  cloudState.reasoning = cfg.reasoning;
   cloudState.baseUrl = cfg.base_url;
   cloudState.model = cfg.model;
   cloudState.apiKey = cfg.api_key;
   cloudState.enabled = enabled;
   localStorage.setItem(CLOUD_STORAGE_KEY, JSON.stringify({
     apiStyle: cloudState.apiStyle,
+    reasoning: cloudState.reasoning,
     baseUrl: cloudState.baseUrl,
     model: cloudState.model,
   }));
@@ -584,6 +595,7 @@ async function sendMessage() {
         cloud: cloudState.enabled ? {
           enabled: true,
           api_style: cloudState.apiStyle,
+          reasoning: cloudState.reasoning,
           base_url: cloudState.baseUrl.trim(),
           model: cloudState.model.trim(),
           api_key: cloudState.apiKey,
@@ -810,7 +822,9 @@ $("#cloudSave").addEventListener("click", () => {
   }
   applyCloudForm(enabled);
   closeCloudModal();
-  logPanel(enabled ? `云端模型已启用：${cloudState.model}` : "云端模型已停用");
+  logPanel(enabled
+    ? `云端模型已启用：${cloudState.model} · ${CLOUD_REASONING_LABEL[cloudState.reasoning]}强度`
+    : "云端模型已停用");
 });
 $("#cloudDisable").addEventListener("click", () => {
   cloudState.enabled = false;

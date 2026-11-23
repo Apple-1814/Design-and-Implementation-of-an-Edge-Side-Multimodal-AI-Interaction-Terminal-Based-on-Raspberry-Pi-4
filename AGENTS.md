@@ -39,7 +39,7 @@
 | 固件 | C + STM32CubeG4 HAL，Keil MDK 5（例程为 `MDK-ARM V5`） | 已验证 0 error / 0 warning |
 | 烧录 | 树莓派上 **pyOCD + Keil STM32G4 DFP**，经 CMSIS-DAP SWD；PC Keil 兜底 | 已验证 |
 | 推理 | llama.cpp（GGUF Q4/Q8），Qwen2.5-1.5B，SmolVLM-500M | 已验证 3.02 tok/s / 34s 单图 |
-| 云端模型（可选） | OpenAI 兼容 / Anthropic 兼容；Key 仅浏览器内存，不入库、不写日志 | 已验证 401/404 错误路径；真实 Key 成功回答待用户实测 |
+| 云端模型（可选） | OpenAI 兼容 / Anthropic 兼容；Key 仅浏览器内存，不入库、不写日志 | 已验证 MiniMax Anthropic 真实 Key 成功回答 |
 | 知识库 | PC 构建 JSONL → Pi 纯 Python BM25；直答优先 + 模型回退 | 1610 片段 / 464 来源 |
 | 后端 | Python 3.8 + FastAPI + uvicorn + pyserial | 已验证 |
 | 前端 | 无构建 HTML/CSS/JS，Pi 静态托管 | 已验证 |
@@ -57,7 +57,7 @@
 - 内容：章节 PPT、产品手册、实训指导书、真题汇编目录、考点统计、官方模块源码、历年真题工程、本机验证固件、`docs/board_facts.md`。
 - 检索：`pi/app/knowledge.py`，中文 bigram + ASCII 标识符 + 同义词，BM25；板卡事实卡/本机固件加权。
 - 问答：`/api/chat` 先硬件规则路由；再知识库直答（板卡/源码/课件摘录，毫秒级）；引脚/事实/概念/对比/FAQ 走确定性直答；未命中技术问题时才调用 1.5B，并附来源；未收录的定义也交给 1.5B 解释，不再拒绝；天气无实时数据，日期用系统时间。模型输出统一去复读、去提示词泄漏、无来源不标引用。回归共 454 项（`qa_mass.py` 211 + `qa_answers.py` 236 + 多轮 6 + 并发 1）。
-- 云端模型（可选）：前端“云”按钮可配置 OpenAI 或 Anthropic 兼容接口；云端保持助教身份，并接收 BM25 检索的 12 片段/9000 字知识库上下文；高频引脚/命令/事实仍本地直答。API Key 只存浏览器页面内存，经 Pi 转发时使用请求头，不写入项目文件、URL 或日志。
+- 云端模型（可选）：前端“云”按钮可配置 OpenAI 或 Anthropic 兼容接口；启用后除硬件命令外所有问答走云端，云端保持助教身份，并接收板卡事实卡 + BM25 检索的 12 片段/9000 字知识库上下文；思考强度低/中/高控制回答长度与推导深度。API Key 只存浏览器页面内存，经 Pi 转发时使用请求头，不写入项目文件、URL 或日志。
 - 限制：图片型真题 DOCX/OneNote 未 OCR；旧平台（F103/STC15）内容只作原理参考。
 
 ## 技能使用

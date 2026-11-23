@@ -26,7 +26,7 @@ from .knowledge import build_messages, kb
 from .serial_service import SerialService
 from .tool_router import route_tool
 
-APP_VERSION = "0.10.2"
+APP_VERSION = "0.11.1"
 LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
 VLM_URL = "http://127.0.0.1:8081/v1/chat/completions"
 
@@ -231,9 +231,24 @@ class ChatMessage(BaseModel):
 class CloudConfig(BaseModel):
     enabled: bool = False
     api_style: str = "openai"
+    reasoning: str = "medium"
     base_url: str = ""
     model: str = ""
     api_key: str = ""
+
+
+def _cloud_reasoning_note(reasoning: str) -> str:
+    if reasoning == "low":
+        return (
+            "思考强度：低。只输出 2–4 句结论，最多 200 字；"
+            "禁止代码块、表格、分点列表和展开推导，直接回答问题。"
+        )
+    if reasoning == "high":
+        return (
+            "思考强度：高。先分析问题与约束，再给结论、关键步骤、代码和易错点；"
+            "可以展开推理与边界条件，但不要重复同一句话。"
+        )
+    return "思考强度：中。先给结论，再给关键步骤或代码；必要时简要说明理由，避免冗长。"
 
 
 class ChatRequest(BaseModel):
@@ -255,6 +270,9 @@ def _validated_cloud(cfg: Optional[CloudConfig]) -> Optional[CloudConfig]:
     style = (cfg.api_style or "openai").strip().lower()
     if style not in ("openai", "anthropic"):
         raise HTTPException(400, "接口类型只支持 openai 或 anthropic")
+    reasoning = (cfg.reasoning or "medium").strip().lower()
+    if reasoning not in ("low", "medium", "high"):
+        raise HTTPException(400, "思考强度只支持 low / medium / high")
     if not base or not model or not key:
         raise HTTPException(400, "云端配置不完整：需要 Base URL、模型名称和 API Key")
 
@@ -272,7 +290,10 @@ def _validated_cloud(cfg: Optional[CloudConfig]) -> Optional[CloudConfig]:
             raise HTTPException(400, "云端 Base URL 不能指向内网地址")
     except ValueError:
         pass
-    return CloudConfig(enabled=True, api_style=style, base_url=base, model=model, api_key=key)
+    return CloudConfig(
+        enabled=True, api_style=style, reasoning=reasoning,
+        base_url=base, model=model, api_key=key,
+    )
 
 
 def _cloud_endpoint(cfg: CloudConfig) -> str:
@@ -353,6 +374,80 @@ async def _cloud_chat(cfg: CloudConfig, messages: List[dict], max_tokens: int,
     if not choices:
         raise HTTPException(status_code=502, detail="云端模型没有返回 choices")
     return ((choices[0].get("message") or {}).get("content") or "").strip()
+
+
+async def _cloud_stream_response(req: "ChatRequest", last: str, retrieval_query: str):
+    """Answer one chat turn entirely with the configured cloud model."""
+    try:
+        cfg = _validated_cloud(req.cloud)
+    except HTTPException as exc:
+        cloud_error = str(exc.detail)
+
+        async def config_stream():
+            yield "data: " + json.dumps(
+                {"sources": [], "knowledge": {"hits": 0, "chunks": len(kb.docs)}, "mode": "cloud"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: " + json.dumps(
+                {"choices": [{"delta": {"content": f"云端配置错误：{cloud_error}"}}], "mode": "cloud"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(config_stream(), media_type="text/event-stream")
+
+    context, sources = ("", [])
+    if req.use_knowledge and kb.should_retrieve(retrieval_query):
+        context, sources = await run_in_threadpool(
+            kb.build_context, retrieval_query, 12, 9000
+        )
+        board_text = await run_in_threadpool(kb.board_fact_context, retrieval_query, 4000)
+        if board_text:
+            prefix = "【板卡事实卡·权威背景，优先于旧平台例程；不必编号引用】\n" + board_text
+            context = prefix + ("\n\n【补充检索资料】\n" + context if context else "")
+    history = [m.model_dump() for m in req.messages]
+    messages = build_messages(history, last, context, sources, provider="cloud")
+    messages[0]["content"] += "\n" + _cloud_reasoning_note(cfg.reasoning)
+    max_tokens = {"low": 256, "medium": 800, "high": 1600}.get(cfg.reasoning, 800)
+
+    async def cloud_stream():
+        yield "data: " + json.dumps(
+            {
+                "sources": sources,
+                "knowledge": {"hits": len(sources), "chunks": len(kb.docs)},
+                "mode": "cloud",
+            },
+            ensure_ascii=False,
+        ) + "\n\n"
+        try:
+            answer = await _cloud_chat(cfg, messages, max_tokens, req.temperature)
+            answer = _clean_model_text(answer, bool(sources))
+            if not answer:
+                answer = "云端模型没有返回内容，请检查模型名称或稍后重试。"
+            yield "data: " + json.dumps(
+                {"choices": [{"delta": {"content": answer}}], "mode": "cloud"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: [DONE]\n\n"
+        except HTTPException as exc:
+            yield "data: " + json.dumps(
+                {"choices": [{"delta": {"content": f"云端模型调用失败：{exc.detail}"}}], "mode": "cloud"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: [DONE]\n\n"
+        except Exception as exc:  # noqa: BLE001
+            yield "data: " + json.dumps(
+                {
+                    "choices": [{"delta": {
+                        "content": f"云端模型调用失败：{type(exc).__name__}。请检查 Base URL、模型名称和 Key。"
+                    }}],
+                    "mode": "cloud",
+                },
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(cloud_stream(), media_type="text/event-stream")
 
 
 @app.post("/api/cloud/test")
@@ -600,6 +695,16 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
         return StreamingResponse(tool_stream(), media_type="text/event-stream")
 
+    # Cloud mode answers every question (except hardware commands, which are
+    # handled deterministically above): board facts, concepts, weather, date,
+    # greetings and open questions all go to the configured cloud model.
+    if req.cloud and req.cloud.enabled:
+        user_msgs = [m.content for m in req.messages if m.role == "user" and m.content]
+        retrieval_query = last
+        if len(last) < 16 and len(user_msgs) >= 2:
+            retrieval_query = user_msgs[-2] + " " + last
+        return await _cloud_stream_response(req, last, retrieval_query)
+
     # Date/time is system state, not a knowledge-base answer.  Answer it
     # exactly from the Pi clock instead of asking the 0.5B model to guess.
     if re.search(r"今天(是)?几号|今天(是)?什么日期|现在(是)?什么日期|今天星期几|现在几点|当前时间", last) \
@@ -846,74 +951,6 @@ async def chat(req: ChatRequest) -> StreamingResponse:
     if general_def_re.search(last) or def_term or re.search(r"天气|气温|下雨|下雪|新闻|股价", last):
         llm_history = []
 
-    try:
-        cloud_cfg = _validated_cloud(req.cloud)
-    except HTTPException as exc:
-        cloud_error = str(exc.detail)
-
-        async def cloud_config_stream():
-            yield "data: " + json.dumps(
-                {"sources": [], "knowledge": {"hits": 0, "chunks": len(kb.docs)}, "mode": "cloud"},
-                ensure_ascii=False,
-            ) + "\n\n"
-            yield "data: " + json.dumps(
-                {"choices": [{"delta": {"content": f"云端配置错误：{cloud_error}"}}], "mode": "cloud"},
-                ensure_ascii=False,
-            ) + "\n\n"
-            yield "data: [DONE]\n\n"
-
-        return StreamingResponse(cloud_config_stream(), media_type="text/event-stream")
-
-    if cloud_cfg:
-        cloud_context, cloud_sources = ("", [])
-        if req.use_knowledge and kb.should_retrieve(retrieval_query):
-            cloud_context, cloud_sources = await run_in_threadpool(
-                kb.build_context, retrieval_query, 12, 9000
-            )
-        cloud_messages = build_messages(
-            llm_history, last, cloud_context, cloud_sources,
-            style="definition" if def_term else "",
-            provider="cloud",
-        )
-        cloud_max_tokens = min(max(req.max_tokens, 512), 1200)
-
-        async def cloud_stream():
-            yield "data: " + json.dumps(
-                {
-                    "sources": cloud_sources,
-                    "knowledge": {"hits": len(cloud_sources), "chunks": len(kb.docs)},
-                    "mode": "cloud",
-                },
-                ensure_ascii=False,
-            ) + "\n\n"
-            try:
-                answer = await _cloud_chat(
-                    cloud_cfg, cloud_messages, cloud_max_tokens, req.temperature
-                )
-                answer = _clean_model_text(answer, bool(cloud_sources))
-                if not answer:
-                    answer = "云端模型没有返回内容，请检查模型名称或稍后重试。"
-                yield "data: " + json.dumps(
-                    {"choices": [{"delta": {"content": answer}}], "mode": "cloud"},
-                    ensure_ascii=False,
-                ) + "\n\n"
-                yield "data: [DONE]\n\n"
-            except HTTPException as exc:
-                message = f"云端模型调用失败：{exc.detail}"
-                yield "data: " + json.dumps(
-                    {"choices": [{"delta": {"content": message}}], "mode": "cloud"},
-                    ensure_ascii=False,
-                ) + "\n\n"
-                yield "data: [DONE]\n\n"
-            except Exception as exc:  # noqa: BLE001
-                message = f"云端模型调用失败：{type(exc).__name__}。请检查 Base URL、模型名称和 Key。"
-                yield "data: " + json.dumps(
-                    {"choices": [{"delta": {"content": message}}], "mode": "cloud"},
-                    ensure_ascii=False,
-                ) + "\n\n"
-                yield "data: [DONE]\n\n"
-
-        return StreamingResponse(cloud_stream(), media_type="text/event-stream")
 
     messages = build_messages(
         llm_history, last, context, sources,
