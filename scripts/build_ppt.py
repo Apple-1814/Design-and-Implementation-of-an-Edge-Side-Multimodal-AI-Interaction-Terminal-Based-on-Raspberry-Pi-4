@@ -182,14 +182,15 @@ def main():
     picture(s, "ui-chat.png", 0.55, 1.25, 8.6, 5.9)
     bullets(s, 9.35, 1.5, 3.6, 5.3, [
         "浅蓝白主界面 + 5 套可切换配色",
-        "SSE 流式输出、会话历史",
+        "SSE 流式输出、会话历史、↑/↓ 召回提问",
         "设备面板：8 LED / 双 ADC / 双 PWM",
         "操作后自动生成代码讲解（时钟→引脚→main）",
         "代码随灯号/文本/通道/占空比变化",
         "图片上传 → /api/vision",
-        "规则路由优先：中文指令直接执行",
+        "规则路由：中文硬件指令直接执行",
         "知识库直答 + 资料来源卡片",
-        "开放问题再交给本地 LLM",
+        "本地 1.5B / 可选云端模型（OpenAI/Anthropic）",
+        "云端思考强度：低 / 中 / 高",
     ], 14)
 
     # 8 knowledge base
@@ -218,26 +219,28 @@ def main():
     s = prs.slides.add_slide(prs.slide_layouts[6])
     title_bar(s, "验证结果", 9)
     bullets(s, 0.8, 1.4, 11.8, 5.4, [
-        "CMSIS-DAP 烧录 + 原固件备份成功；Keil 0 error / 0 warning",
-        "UART 9600 双向：PING → OK PONG；LED 闪 5 下",
-        "LED 单灯/全亮/全灭正确；LCD 清屏后仅显示 Hello",
-        "ADC1=369 / ADC2=1414；PWM1 20% / PWM2 40% 设置与回读一致",
-        "自然语言：「让 LED1 亮起来」「LCD 显示 Hello」「读取 ADC」「PWM 50」均执行",
-        "LLM 7.26 tok/s；VLM 单图 34.11 s；30 分钟稳定性 933 次检查 / 0 失败（最高 47.2°C）",
-        "知识库：1610 片段；LED/I2C/PWM/USART/LCD 直答 0.04s，附来源",
+        "CMSIS-DAP 烧录 + 原固件备份；Keil 0 error / 0 warning；UART 9600 双向",
+        "LED / LCD / ADC1+2 / PWM1+2 控制与回读正确；自然语言硬件指令可执行",
+        "1.5B LLM 3.02 tok/s；VLM 单图 34.11s；30 分钟 933 次检查 / 0 失败",
+        "知识库 1610 片段 / 464 来源；板卡/源码/课件直答 0.04s，附来源",
+        "454/454 问答回归：事实 211 + 回答质量 236 + 多轮 6 + 并发 1",
+        "代码讲解：LED/LCD/ADC/PWM 操作后自动生成，代码随本次操作变化",
+        "输入历史：↑/↓ 召回当前会话提问，↓ 到最新恢复草稿",
+        "云端：MiniMax-M3 Anthropic 真实 Key 成功；思考强度低/中/高可调",
         "systemd 开机自启：上电后约 22 秒 API 上线（LCD 显示 IP/READY）",
-    ], 17)
+    ], 16)
 
     # 10 shortcomings
     s = prs.slides.add_slide(prs.slide_layouts[6])
     title_bar(s, "不足与改进", 10)
     bullets(s, 0.8, 1.4, 11.8, 5.4, [
         "板载 VCP 仅 9600，且烧录后可能写阻塞 → USB-TTL/GPIO UART",
-        "小模型能力有限 → 1.5B/3B、RAG、端云协同",
+        "1.5B 仍非云端大模型 → 3B/云端增强、RAG、确定性直答",
         "VLM 单图 34s → 更强 VLM、NPU 加速、图片预处理",
         "无摄像头 → Camera Module 3 / USB 摄像头",
         "规则路由优先 → 结构化 function calling / GBNF",
         "知识库真题截图未 OCR → 后续 OCR/人工整理题面",
+        "云端依赖网络/Key/额度 → 兼容更多协议、失败回退、Key 轮换",
         "Proteus 无法仿真 Pi/LLM → 实测波形 + 明确边界",
     ], 16)
 
@@ -247,7 +250,8 @@ def main():
     textbox(s, 0.8, 2.0, 11.8, 0.8, "总结", 38, True, ACCENT)
     textbox(s, 0.8, 3.0, 11.8, 2.4,
             "完成端侧多模态 AI 交互终端的全链路实现：\n"
-            "本地 LLM/VLM + 蓝桥杯知识库 RAG + Web 聊天 + STM32 硬件控制。",
+            "本地 1.5B LLM/VLM + 蓝桥杯知识库 RAG + Web 聊天 + STM32 硬件控制\n"
+            "+ 动态代码讲解 + 输入历史 + 可选云端模型。",
             24, False, TEXT)
     textbox(s, 0.8, 5.8, 11.8, 0.6, "谢谢！请各位老师批评指正", 26, True, GREEN)
 

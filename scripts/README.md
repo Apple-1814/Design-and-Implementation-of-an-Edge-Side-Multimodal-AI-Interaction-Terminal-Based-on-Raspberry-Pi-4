@@ -7,7 +7,7 @@
 | `flash.py` | 读取 `firmware/release/manifest.json`，校验 sha256，pyOCD 烧录 + 复位 |
 | `uart_test.py` | 常开 `/dev/ttyACM0`，逐条发送协议命令并打印 ACK |
 | `start_all.sh` | 后台启动 LLM(8080) + VLM(8081) + FastAPI(8000) |
-| `run_llama.sh` | 启动 Qwen2.5-0.5B `llama-server`（127.0.0.1:8080） |
+| `run_llama.sh` | 启动 Qwen2.5-1.5B `llama-server`（127.0.0.1:8080） |
 | `run_vlm.sh` | 启动 SmolVLM-500M 多模态 `llama-server`（127.0.0.1:8081） |
 | `bench_llm.py` | 调用 `/v1/chat/completions`，输出耗时/tok/s/内容 |
 | `stability_test.py` | 30 分钟稳定性测试（硬件/LLM/VLM/内存/温度） |
