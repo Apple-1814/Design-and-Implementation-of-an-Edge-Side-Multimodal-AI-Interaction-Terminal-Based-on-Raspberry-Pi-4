@@ -16,6 +16,9 @@ const guideState = {
   copyTimer: null,
 };
 
+let questionHistoryCursor = -1;
+let questionHistoryDraft = "";
+
 const messagesEl = $("#messages");
 const inputEl = $("#input");
 const sendBtn = $("#sendBtn");
@@ -79,6 +82,7 @@ function renderSessions() {
     el.appendChild(del);
     el.onclick = () => {
       state.currentId = s.id;
+      resetQuestionHistory();
       renderSessions();
       renderMessages();
     };
@@ -107,6 +111,7 @@ function deleteSession(id) {
   saveSessions();
   renderSessions();
   renderMessages();
+  resetQuestionHistory();
 }
 
 function clearAllHistory() {
@@ -117,6 +122,7 @@ function clearAllHistory() {
   saveSessions();
   renderSessions();
   renderMessages();
+  resetQuestionHistory();
 }
 
 function escapeHtml(text) {
@@ -392,6 +398,7 @@ async function sendVision() {
   addMessage("user", prompt, dataUrl);
   clearPendingImage();
   inputEl.value = "";
+  resetQuestionHistory();
   autoResize();
 
   const session = currentSession();
@@ -439,6 +446,7 @@ async function sendMessage() {
 
   addMessage("user", text);
   inputEl.value = "";
+  resetQuestionHistory();
   autoResize();
 
   const session = currentSession();
@@ -541,6 +549,48 @@ function autoResize() {
   inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + "px";
 }
 
+function resetQuestionHistory() {
+  questionHistoryCursor = -1;
+  questionHistoryDraft = "";
+}
+
+function currentQuestionHistory() {
+  const session = currentSession();
+  if (!session) return [];
+  return session.messages
+    .filter((m) => m.role === "user" && m.content)
+    .map((m) => m.content);
+}
+
+function setComposerText(text) {
+  inputEl.value = text;
+  autoResize();
+  const end = inputEl.value.length;
+  inputEl.setSelectionRange(end, end);
+  inputEl.scrollTop = inputEl.scrollHeight;
+}
+
+function navigateQuestionHistory(direction) {
+  const items = currentQuestionHistory();
+  if (!items.length) return false;
+  if (questionHistoryCursor === -1) {
+    if (direction > 0) return false;
+    questionHistoryDraft = inputEl.value;
+    questionHistoryCursor = items.length - 1;
+  } else {
+    questionHistoryCursor += direction;
+  }
+  if (questionHistoryCursor < 0) {
+    questionHistoryCursor = 0;
+  } else if (questionHistoryCursor >= items.length) {
+    questionHistoryCursor = -1;
+    setComposerText(questionHistoryDraft);
+    return true;
+  }
+  setComposerText(items[questionHistoryCursor]);
+  return true;
+}
+
 async function refreshStatus() {
   try {
     const resp = await fetch("/api/device/status");
@@ -619,12 +669,31 @@ messagesEl.addEventListener("click", (e) => {
 sendBtn.addEventListener("click", sendMessage);
 
 inputEl.addEventListener("keydown", (e) => {
+  if (e.isComposing || e.keyCode === 229) return;
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
+    return;
+  }
+  if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+  if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (inputEl.selectionStart !== inputEl.selectionEnd) return;
+
+  // Only browse question history when the caret is on the first/last line;
+  // otherwise let the arrow keys move inside a multi-line draft.
+  const before = inputEl.value.slice(0, inputEl.selectionStart);
+  const after = inputEl.value.slice(inputEl.selectionEnd);
+  if (e.key === "ArrowUp" && before.includes("\n")) return;
+  if (e.key === "ArrowDown" && after.includes("\n")) return;
+
+  if (navigateQuestionHistory(e.key === "ArrowUp" ? -1 : 1)) {
+    e.preventDefault();
   }
 });
-inputEl.addEventListener("input", autoResize);
+inputEl.addEventListener("input", () => {
+  autoResize();
+  resetQuestionHistory();
+});
 
 $("#newChat").addEventListener("click", () => {
   const s = { id: uid(), title: "新对话", messages: [], createdAt: Date.now() };
@@ -633,6 +702,7 @@ $("#newChat").addEventListener("click", () => {
   saveSessions();
   renderSessions();
   renderMessages();
+  resetQuestionHistory();
   setView("chat");
   inputEl.focus();
 });
@@ -647,6 +717,7 @@ $("#clearChat").addEventListener("click", () => {
   saveSessions();
   renderSessions();
   renderMessages();
+  resetQuestionHistory();
 });
 
 const ledState = new Set();
