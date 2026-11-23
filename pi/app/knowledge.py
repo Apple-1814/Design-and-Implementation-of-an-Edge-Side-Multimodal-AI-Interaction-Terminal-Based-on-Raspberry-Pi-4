@@ -29,7 +29,7 @@ RETRIEVE_TERMS_RE = re.compile(
     r"keil|cube|hal|代码|函数|编译|烧录|下载|调试|swd|jtag|dma|nvic|exti|tim|"
     r"freertos|rtos|原理图|封装|开发板|板卡|真题|省赛|国赛|备赛|考点|"
     r"芯片|flash|ram|主频|电位器|供电|接口|环境|调试器|下载器|命令|ping|"
-    r"sizeof|字符串|扩展|排错|排查|启动|外设|模块",
+    r"sizeof|字符串|扩展|排错|排查|启动|外设|模块|知识库|资料|课件|文档|手册",
     re.I,
 )
 
@@ -955,6 +955,15 @@ SYSTEM_PROMPT = """你是蓝桥杯嵌入式 AI 助教，专精 CT117E-M4（STM32
 - 旧平台（F103/STC15）只能参考原理，不能照抄引脚；中文回答，300 字以内，代码用 Markdown。"""
 
 
+CLOUD_SYSTEM_PROMPT = """你是蓝桥杯嵌入式 AI 助教，专精 CT117E-M4（STM32G431RBT6，Keil + CubeMX + HAL），现在由云端大模型驱动。
+回答要求：
+- 保持“蓝桥杯 AI 助教”的身份，不要自称通用聊天机器人。
+- 优先依据【检索资料】回答；资料覆盖板卡、外设、官方源码、课件和真题。
+- 有资料时在句末标 [1][2]；没有资料时用通用知识回答，并说明不确定，不要编造引脚或寄存器。
+- 先给结论，再给关键步骤/代码；板卡事实要具体到引脚、寄存器或函数名。
+- 中文回答，条理清晰，代码用 Markdown；不确定时建议查官方资源包。"""
+
+
 # Direct pin answers: a “哪些引脚” question should get a short pin list,
 # never a code/PPT dump.
 PIN_SUMMARY = [
@@ -1144,14 +1153,16 @@ FAQ_ANSWERS = [
 
 
 def build_messages(history: List[dict], question: str, context: str,
-                   sources: List[dict], style: str = "") -> List[dict]:
+                   sources: List[dict], style: str = "",
+                   provider: str = "") -> List[dict]:
     """Build a compact Qwen prompt: system + at most one prior turn + context."""
     now = datetime.now()
     weekdays = "一二三四五六日"
     current = f"{now.year}年{now.month}月{now.day}日 星期{weekdays[now.weekday()]}"
+    system_prompt = CLOUD_SYSTEM_PROMPT if provider == "cloud" else SYSTEM_PROMPT
     msgs: List[dict] = [{
         "role": "system",
-        "content": SYSTEM_PROMPT + f"\n当前日期：{current}。",
+        "content": system_prompt + f"\n当前日期：{current}。",
     }]
     # Long chat history multiplies prompt-processing latency on the Pi.  The
     # retrieval query already includes the previous question for follow-ups,

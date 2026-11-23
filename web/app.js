@@ -19,6 +19,88 @@ const guideState = {
 let questionHistoryCursor = -1;
 let questionHistoryDraft = "";
 
+const CLOUD_STORAGE_KEY = "ai-terminal-cloud-v1";
+const cloudState = {
+  enabled: false,
+  apiStyle: "openai",
+  baseUrl: "https://api.deepseek.com/v1",
+  model: "deepseek-chat",
+  apiKey: "",
+};
+
+function loadCloudConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CLOUD_STORAGE_KEY) || "{}");
+    if (saved.apiStyle === "anthropic" || saved.apiStyle === "openai") {
+      cloudState.apiStyle = saved.apiStyle;
+    }
+    if (saved.baseUrl) cloudState.baseUrl = saved.baseUrl;
+    if (saved.model) cloudState.model = saved.model;
+  } catch (e) {}
+}
+
+function updateCloudButton() {
+  const btn = $("#cloudBtn");
+  if (!btn) return;
+  const on = cloudState.enabled && Boolean(cloudState.apiKey);
+  btn.classList.toggle("on", on);
+  btn.title = on ? `云端模型：${cloudState.model}` : "云端模型设置";
+  const pill = document.querySelector(".model-pill");
+  if (pill) {
+    pill.textContent = on ? `云端 · ${cloudState.model}` : "Qwen2.5-1.5B · 本地 RAG";
+  }
+  const hint = document.querySelector(".composer-wrap .hint");
+  if (hint) {
+    hint.textContent = on
+      ? `云端模型 ${cloudState.model} 已启用 · 引脚/事实仍本地直答 · Key 仅当前页面`
+      : "本地知识库 RAG · 板卡问题通常秒答 · 开放问题由本地模型生成，可能需要 40–120 秒";
+  }
+}
+
+function openCloudModal() {
+  $("#cloudStyle").value = cloudState.apiStyle;
+  $("#cloudBase").value = cloudState.baseUrl;
+  $("#cloudModel").value = cloudState.model;
+  $("#cloudKey").value = cloudState.apiKey;
+  $("#cloudEnabled").checked = cloudState.enabled;
+  $("#cloudTestResult").textContent = "";
+  $("#cloudTestResult").className = "modal-result";
+  $("#cloudStatus").textContent = cloudState.enabled
+    ? `已启用：${cloudState.model || "未命名模型"}`
+    : "未启用";
+  $("#cloudModal").hidden = false;
+}
+
+function closeCloudModal() {
+  $("#cloudModal").hidden = true;
+}
+
+function cloudFormValue() {
+  return {
+    enabled: true,
+    api_style: $("#cloudStyle").value,
+    base_url: $("#cloudBase").value.trim(),
+    model: $("#cloudModel").value.trim(),
+    api_key: $("#cloudKey").value,
+  };
+}
+
+function applyCloudForm(enabled) {
+  const cfg = cloudFormValue();
+  cloudState.apiStyle = cfg.api_style;
+  cloudState.baseUrl = cfg.base_url;
+  cloudState.model = cfg.model;
+  cloudState.apiKey = cfg.api_key;
+  cloudState.enabled = enabled;
+  localStorage.setItem(CLOUD_STORAGE_KEY, JSON.stringify({
+    apiStyle: cloudState.apiStyle,
+    baseUrl: cloudState.baseUrl,
+    model: cloudState.model,
+  }));
+  updateCloudButton();
+}
+
+
 const messagesEl = $("#messages");
 const inputEl = $("#input");
 const sendBtn = $("#sendBtn");
@@ -272,7 +354,9 @@ function sourcesNode(sources, knowledge, mode) {
   head.className = "sources-head";
   const hits = sources?.length || 0;
   const total = knowledge?.chunks ? ` · 知识库 ${knowledge.chunks} 片段` : "";
-  const modeLabel = mode === "knowledge" ? "知识库直答 · " : mode === "rag" ? "RAG 生成 · " : "";
+  const modeLabel = mode === "knowledge" ? "知识库直答 · "
+    : mode === "rag" ? "RAG 生成 · "
+    : mode === "cloud" ? "云端模型 · " : "";
   head.innerHTML = `${escapeHtml(modeLabel)}参考资料 <b>${hits}</b> 条${escapeHtml(total)}`;
   wrap.appendChild(head);
   (sources || []).forEach((s) => wrap.appendChild(sourceNode(s)));
@@ -280,13 +364,16 @@ function sourcesNode(sources, knowledge, mode) {
 }
 
 function thinkingHtml(msg) {
-  const modelMode = msg.mode === "rag" || msg.mode === "llm";
+  const cloudMode = msg.mode === "cloud";
+  const modelMode = msg.mode === "rag" || msg.mode === "llm" || cloudMode;
   const elapsed = msg.startedAt ? Math.max(0, Math.floor((Date.now() - msg.startedAt) / 1000)) : 0;
-  const label = modelMode ? "本地模型思考中" : "正在检索资料";
+  const label = cloudMode ? "云端模型思考中" : modelMode ? "本地模型思考中" : "正在检索资料";
   const wait = elapsed ? ` 已等待 ${elapsed}s` : "";
-  const note = modelMode
-    ? "1.5B 本地模型可能需要 40–120 秒，请稍候"
-    : "知识库直答通常 1 秒内完成";
+  const note = cloudMode
+    ? "云端模型通常 2–10 秒；知识库检索结果会一并发送"
+    : modelMode
+      ? "1.5B 本地模型可能需要 40–120 秒，请稍候"
+      : "知识库直答通常 1 秒内完成";
   return `<p class="thinking">${label}…${wait}<br><span>${note}</span></p>`;
 }
 
@@ -443,6 +530,11 @@ async function sendMessage() {
   }
   const text = inputEl.value.trim();
   if (!text) return;
+  if (cloudState.enabled && !cloudState.apiKey.trim()) {
+    logPanel("云端模型已启用，但还没有填写 API Key");
+    openCloudModal();
+    return;
+  }
 
   addMessage("user", text);
   inputEl.value = "";
@@ -486,9 +578,16 @@ async function sendMessage() {
       signal: state.controller.signal,
       body: JSON.stringify({
         messages: history,
-        max_tokens: 192,
+        max_tokens: cloudState.enabled ? 800 : 192,
         temperature: 0.3,
         use_knowledge: true,
+        cloud: cloudState.enabled ? {
+          enabled: true,
+          api_style: cloudState.apiStyle,
+          base_url: cloudState.baseUrl.trim(),
+          model: cloudState.model.trim(),
+          api_key: cloudState.apiKey,
+        } : undefined,
       }),
     });
     if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
@@ -656,6 +755,74 @@ $("#guideCopy").addEventListener("click", (e) => copyGuideCode(e.currentTarget))
 $("#guideCopy2").addEventListener("click", (e) => copyGuideCode(e.currentTarget));
 document.querySelectorAll("[data-guide]").forEach((btn) => {
   btn.addEventListener("click", () => openGuide(btn.dataset.guide, "预览"));
+});
+
+/* ---------- 云端模型设置 ---------- */
+$("#cloudBtn").addEventListener("click", openCloudModal);
+$("#cloudClose").addEventListener("click", closeCloudModal);
+$("#cloudModal").addEventListener("click", (e) => {
+  if (e.target === $("#cloudModal")) closeCloudModal();
+});
+$("#cloudEnabled").addEventListener("change", (e) => {
+  $("#cloudStatus").textContent = e.target.checked ? "保存后启用" : "保存后停用";
+});
+$("#cloudTest").addEventListener("click", async () => {
+  const result = $("#cloudTestResult");
+  const cfg = cloudFormValue();
+  if (!cfg.base_url || !cfg.model || !cfg.api_key) {
+    result.className = "modal-result bad";
+    result.textContent = "请先填写 Base URL、模型名称和 API Key";
+    return;
+  }
+  const btn = $("#cloudTest");
+  btn.disabled = true;
+  result.className = "modal-result";
+  result.textContent = "正在测试连接…";
+  try {
+    const resp = await fetch("/api/cloud/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.ok) {
+      result.className = "modal-result ok";
+      result.textContent = `连接成功：${data.model} · ${data.reply || "OK"}`;
+    } else {
+      result.className = "modal-result bad";
+      result.textContent = data.detail || `HTTP ${resp.status}`;
+    }
+  } catch (err) {
+    result.className = "modal-result bad";
+    result.textContent = `测试失败：${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+$("#cloudSave").addEventListener("click", () => {
+  const result = $("#cloudTestResult");
+  const cfg = cloudFormValue();
+  const enabled = $("#cloudEnabled").checked;
+  if (enabled && (!cfg.base_url || !cfg.model || !cfg.api_key)) {
+    result.className = "modal-result bad";
+    result.textContent = "启用云端模型需要 Base URL、模型名称和 API Key";
+    return;
+  }
+  applyCloudForm(enabled);
+  closeCloudModal();
+  logPanel(enabled ? `云端模型已启用：${cloudState.model}` : "云端模型已停用");
+});
+$("#cloudDisable").addEventListener("click", () => {
+  cloudState.enabled = false;
+  cloudState.apiKey = "";
+  $("#cloudEnabled").checked = false;
+  $("#cloudKey").value = "";
+  updateCloudButton();
+  closeCloudModal();
+  logPanel("云端模型已停用，API Key 已从页面内存清除");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("#cloudModal").hidden) closeCloudModal();
 });
 
 messagesEl.addEventListener("click", (e) => {
@@ -965,6 +1132,8 @@ if (themeSelect) {
   themeSelect.addEventListener("change", (e) => applyTheme(e.target.value));
 }
 
+loadCloudConfig();
+updateCloudButton();
 loadSessions();
 refreshStatus();
 refreshKnowledge();

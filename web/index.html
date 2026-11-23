@@ -10,7 +10,7 @@
         localStorage.getItem("ai-terminal-theme-v1") || "light";
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="style.css?v=0.9.8">
+  <link rel="stylesheet" href="style.css?v=0.10.2">
 </head>
 <body>
   <div class="app">
@@ -52,6 +52,7 @@
           </label>
         </div>
         <div class="topbar-actions">
+          <button class="cloud-btn" id="cloudBtn" type="button" title="云端模型设置" aria-label="云端模型设置">云</button>
           <button class="ghost" id="clearChat">清空当前对话</button>
         </div>
       </header>
@@ -237,7 +238,54 @@
       <div class="panel-log" id="panelLog"></div>
     </aside>
   </div>
-  <script src="guides.js?v=0.9.8"></script>
-  <script src="app.js?v=0.9.8"></script>
+
+  <div class="modal-backdrop" id="cloudModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cloudModalTitle">
+      <div class="modal-head">
+        <div>
+          <div class="modal-kicker">CLOUD MODEL</div>
+          <h3 id="cloudModalTitle">云端模型接入</h3>
+        </div>
+        <button class="modal-close" id="cloudClose" type="button" aria-label="关闭">×</button>
+      </div>
+      <p class="modal-note">
+        OpenAI 兼容（DeepSeek / OpenAI / 通义）或 Anthropic 兼容（Claude / MiniMax）接口。启用后，云端模型会以“蓝桥杯 AI 助教”身份回答，并优先使用本地知识库检索结果。
+        引脚/命令/板卡事实等高频问题仍走本地确定性直答，其余问题交给云端模型，兼顾速度与准确。
+        <b>API Key 只保存在当前页面内存</b>，刷新或关闭标签页后清除，不写入服务器文件或日志。
+      </p>
+      <label class="modal-field">
+        <span>接口类型</span>
+        <select id="cloudStyle">
+          <option value="openai">OpenAI 兼容（DeepSeek / OpenAI / 通义）</option>
+          <option value="anthropic">Anthropic 兼容（Claude / MiniMax）</option>
+        </select>
+      </label>
+      <label class="modal-field">
+        <span>Base URL</span>
+        <input id="cloudBase" type="url" placeholder="https://api.deepseek.com/v1" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="modal-field">
+        <span>模型名称</span>
+        <input id="cloudModel" type="text" placeholder="deepseek-chat" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="modal-field">
+        <span>API Key</span>
+        <input id="cloudKey" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
+      </label>
+      <div class="modal-row">
+        <label class="check"><input type="checkbox" id="cloudEnabled"> 启用云端模型</label>
+        <span class="modal-status" id="cloudStatus">未启用</span>
+      </div>
+      <div class="modal-result" id="cloudTestResult"></div>
+      <div class="modal-actions">
+        <button class="ghost" id="cloudTest" type="button">测试连接</button>
+        <button class="primary" id="cloudSave" type="button">保存并启用</button>
+        <button class="ghost danger" id="cloudDisable" type="button">停用</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="guides.js?v=0.10.2"></script>
+  <script src="app.js?v=0.10.2"></script>
 </body>
 </html>

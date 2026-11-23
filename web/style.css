@@ -1424,3 +1424,174 @@ html { color-scheme: light; }
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* ---------- 云端模型设置 ---------- */
+.cloud-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cloud-btn:hover { color: var(--accent-2); border-color: var(--accent); }
+
+.cloud-btn.on {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 45%, var(--line));
+  background: color-mix(in srgb, var(--green) 9%, var(--panel));
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, #0b1b2e 38%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.modal-card {
+  width: min(540px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 24px 70px rgba(12, 34, 62, .28);
+}
+
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-kicker {
+  color: var(--accent-2);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.modal-head h3 {
+  margin: 4px 0 0;
+  font-size: 19px;
+}
+
+.modal-close {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, var(--line)); }
+
+.modal-note {
+  margin: 12px 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.modal-note b { color: var(--text); }
+
+.modal-field { display: block; margin-top: 12px; }
+
+.modal-field > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.modal-field input {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.modal-field input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+}
+
+.modal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px 0 2px;
+}
+
+.modal-status { color: var(--muted); font-size: 11px; }
+
+.modal-result {
+  min-height: 18px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.modal-result.ok { color: var(--green); }
+.modal-result.bad { color: var(--red); }
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.modal-actions .primary {
+  padding: 7px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-actions .primary:hover { background: var(--accent-2); }
+.modal-actions .danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 34%, var(--line)); }
+.modal-actions button:disabled { opacity: .55; cursor: wait; }
+
+.modal-field select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.modal-field select:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+}

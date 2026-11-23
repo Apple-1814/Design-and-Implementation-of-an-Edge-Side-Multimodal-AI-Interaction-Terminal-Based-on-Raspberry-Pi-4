@@ -4,6 +4,7 @@ M2 scope: persistent serial service and device endpoints.
 LLM/VLM endpoints are added in M3/M5.
 """
 import base64
+import ipaddress
 import json
 import os
 import re
@@ -11,6 +12,7 @@ import secrets
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
@@ -24,7 +26,7 @@ from .knowledge import build_messages, kb
 from .serial_service import SerialService
 from .tool_router import route_tool
 
-APP_VERSION = "0.9.8"
+APP_VERSION = "0.10.2"
 LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
 VLM_URL = "http://127.0.0.1:8081/v1/chat/completions"
 
@@ -226,12 +228,150 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class CloudConfig(BaseModel):
+    enabled: bool = False
+    api_style: str = "openai"
+    base_url: str = ""
+    model: str = ""
+    api_key: str = ""
+
+
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
     max_tokens: int = Field(default=192, ge=16, le=1024)
     temperature: float = Field(default=0.3, ge=0.0, le=2.0)
     use_knowledge: bool = True
     fast_only: bool = False
+    cloud: Optional[CloudConfig] = None
+
+
+def _validated_cloud(cfg: Optional[CloudConfig]) -> Optional[CloudConfig]:
+    """Validate an OpenAI-compatible cloud endpoint without logging secrets."""
+    if not cfg or not cfg.enabled:
+        return None
+    base = (cfg.base_url or "").strip().rstrip("/")
+    model = (cfg.model or "").strip()
+    key = (cfg.api_key or "").strip()
+    style = (cfg.api_style or "openai").strip().lower()
+    if style not in ("openai", "anthropic"):
+        raise HTTPException(400, "接口类型只支持 openai 或 anthropic")
+    if not base or not model or not key:
+        raise HTTPException(400, "云端配置不完整：需要 Base URL、模型名称和 API Key")
+
+    parsed = urlparse(base)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise HTTPException(400, "云端 Base URL 必须是 https:// 开头的地址")
+    if parsed.username or parsed.password:
+        raise HTTPException(400, "Base URL 不能包含用户名或密码")
+    host = parsed.hostname.lower()
+    if host in ("localhost", "127.0.0.1", "::1") or host.endswith(".local"):
+        raise HTTPException(400, "云端 Base URL 不能指向本机")
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise HTTPException(400, "云端 Base URL 不能指向内网地址")
+    except ValueError:
+        pass
+    return CloudConfig(enabled=True, api_style=style, base_url=base, model=model, api_key=key)
+
+
+def _cloud_endpoint(cfg: CloudConfig) -> str:
+    base = cfg.base_url.rstrip("/")
+    path = urlparse(base).path.rstrip("/")
+    if cfg.api_style == "anthropic":
+        if path.endswith("/v1/messages"):
+            return base
+        if path.endswith("/v1"):
+            return base + "/messages"
+        return base + "/v1/messages"
+    if path.endswith("/chat/completions"):
+        return base
+    if path in ("", "/"):
+        return base + "/v1/chat/completions"
+    return base + "/chat/completions"
+
+
+async def _cloud_chat(cfg: CloudConfig, messages: List[dict], max_tokens: int,
+                      temperature: float) -> str:
+    url = _cloud_endpoint(cfg)
+    if cfg.api_style == "anthropic":
+        system_parts = [m.get("content") or "" for m in messages if m.get("role") == "system"]
+        chat_messages = [
+            {"role": m.get("role"), "content": m.get("content") or ""}
+            for m in messages if m.get("role") in ("user", "assistant")
+        ]
+        payload = {
+            "model": cfg.model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "system": "\n\n".join(p for p in system_parts if p),
+            "messages": chat_messages,
+        }
+        headers = {
+            "x-api-key": cfg.api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
+    else:
+        payload = {
+            "model": cfg.model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        }
+        headers = {
+            "Authorization": "Bearer " + cfg.api_key,
+            "Content-Type": "application/json",
+        }
+    async with httpx.AsyncClient(timeout=120) as client:
+        resp = await client.post(url, json=payload, headers=headers)
+    if resp.status_code != 200:
+        if resp.status_code in (401, 403):
+            detail = "认证失败，请检查 API Key 或账户额度"
+        elif resp.status_code == 404:
+            detail = (
+                "404 路径不存在，请检查 Base URL 与接口类型是否匹配"
+                f"（当前 {cfg.api_style}，请求 {url}）"
+            )
+        else:
+            detail = resp.text[:240]
+            detail = detail.replace(cfg.api_key, "***")
+            detail = re.sub(r"sk-[A-Za-z0-9_-]+", "sk-***", detail)
+            detail = re.sub(r"(?i)(api key[:：]\s*)\S+", r"\1***", detail)
+        raise HTTPException(status_code=502, detail=f"云端模型返回 {resp.status_code}：{detail}")
+    data = resp.json()
+    if cfg.api_style == "anthropic":
+        blocks = data.get("content") or []
+        text = "".join(
+            block.get("text") or ""
+            for block in blocks
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+        return text.strip()
+    choices = data.get("choices") or []
+    if not choices:
+        raise HTTPException(status_code=502, detail="云端模型没有返回 choices")
+    return ((choices[0].get("message") or {}).get("content") or "").strip()
+
+
+@app.post("/api/cloud/test")
+async def cloud_test(cfg: CloudConfig) -> dict:
+    checked = _validated_cloud(cfg)
+    if not checked:
+        raise HTTPException(400, "云端模型未启用")
+    try:
+        reply = await _cloud_chat(
+            checked,
+            [{"role": "user", "content": "只回复：OK"}],
+            8,
+            0.0,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"连接失败：{type(exc).__name__}") from exc
+    return {"ok": True, "model": checked.model, "reply": reply[:80]}
 
 
 def _send(command: str, wait: float = 0.8) -> str:
@@ -662,9 +802,28 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             yield "data: [DONE]\n\n"
 
         if meta_re.search(last):
+            cloud_model = (
+                (req.cloud.model or "").strip()
+                if req.cloud and req.cloud.enabled
+                else ""
+            )
+            cloud_ready = bool(cloud_model and (req.cloud.api_key or "").strip())
+            if cloud_ready:
+                model_line = (
+                    f"- 底层语言模型：**{cloud_model}**（云端 OpenAI 兼容接口，经树莓派转发）；"
+                    "Key 只保存在当前浏览器页面内存，不写入服务器。\n"
+                )
+            elif cloud_model:
+                model_line = (
+                    f"- 云端模型：**{cloud_model}**（尚未填写 API Key，当前仍使用本地 1.5B）。\n"
+                )
+            else:
+                model_line = (
+                    "- 底层语言模型：**Qwen2.5-1.5B-Instruct（GGUF Q4_K_M）**，本地推理，不依赖云端 API。\n"
+                )
             meta_text = (
                 "我是**蓝桥杯嵌入式 AI 助教**，运行在树莓派 4B 上。\n\n"
-                "- 底层语言模型：**Qwen2.5-1.5B-Instruct（GGUF Q4_K_M）**，本地推理，不依赖云端 API。\n"
+                + model_line +
                 f"- 知识库：**CT117E-M4 专用知识库**，当前 {len(kb.docs)} 个片段 / {len({d.get('source') for d in kb.docs})} 个来源，覆盖板卡、外设、代码与真题。\n"
                 "- 我还能通过规则路由控制板载 LED、LCD、ADC、PWM（例如“让 LED1 亮起来”）。\n\n"
                 "你可以直接问：“LED 怎么点亮？”“USART1 怎么配置？”“I2C 读写 AT24C02 怎么写？”"
@@ -683,9 +842,79 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
     llm_history = [m.model_dump() for m in req.messages]
     # Definition/weather questions are standalone: feeding prior board history
-    # makes the 0.5B model copy unrelated code or mix topics.
+    # makes the small model copy unrelated code or mix topics.
     if general_def_re.search(last) or def_term or re.search(r"天气|气温|下雨|下雪|新闻|股价", last):
         llm_history = []
+
+    try:
+        cloud_cfg = _validated_cloud(req.cloud)
+    except HTTPException as exc:
+        cloud_error = str(exc.detail)
+
+        async def cloud_config_stream():
+            yield "data: " + json.dumps(
+                {"sources": [], "knowledge": {"hits": 0, "chunks": len(kb.docs)}, "mode": "cloud"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: " + json.dumps(
+                {"choices": [{"delta": {"content": f"云端配置错误：{cloud_error}"}}], "mode": "cloud"},
+                ensure_ascii=False,
+            ) + "\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(cloud_config_stream(), media_type="text/event-stream")
+
+    if cloud_cfg:
+        cloud_context, cloud_sources = ("", [])
+        if req.use_knowledge and kb.should_retrieve(retrieval_query):
+            cloud_context, cloud_sources = await run_in_threadpool(
+                kb.build_context, retrieval_query, 12, 9000
+            )
+        cloud_messages = build_messages(
+            llm_history, last, cloud_context, cloud_sources,
+            style="definition" if def_term else "",
+            provider="cloud",
+        )
+        cloud_max_tokens = min(max(req.max_tokens, 512), 1200)
+
+        async def cloud_stream():
+            yield "data: " + json.dumps(
+                {
+                    "sources": cloud_sources,
+                    "knowledge": {"hits": len(cloud_sources), "chunks": len(kb.docs)},
+                    "mode": "cloud",
+                },
+                ensure_ascii=False,
+            ) + "\n\n"
+            try:
+                answer = await _cloud_chat(
+                    cloud_cfg, cloud_messages, cloud_max_tokens, req.temperature
+                )
+                answer = _clean_model_text(answer, bool(cloud_sources))
+                if not answer:
+                    answer = "云端模型没有返回内容，请检查模型名称或稍后重试。"
+                yield "data: " + json.dumps(
+                    {"choices": [{"delta": {"content": answer}}], "mode": "cloud"},
+                    ensure_ascii=False,
+                ) + "\n\n"
+                yield "data: [DONE]\n\n"
+            except HTTPException as exc:
+                message = f"云端模型调用失败：{exc.detail}"
+                yield "data: " + json.dumps(
+                    {"choices": [{"delta": {"content": message}}], "mode": "cloud"},
+                    ensure_ascii=False,
+                ) + "\n\n"
+                yield "data: [DONE]\n\n"
+            except Exception as exc:  # noqa: BLE001
+                message = f"云端模型调用失败：{type(exc).__name__}。请检查 Base URL、模型名称和 Key。"
+                yield "data: " + json.dumps(
+                    {"choices": [{"delta": {"content": message}}], "mode": "cloud"},
+                    ensure_ascii=False,
+                ) + "\n\n"
+                yield "data: [DONE]\n\n"
+
+        return StreamingResponse(cloud_stream(), media_type="text/event-stream")
+
     messages = build_messages(
         llm_history, last, context, sources,
         style="definition" if def_term else "",
