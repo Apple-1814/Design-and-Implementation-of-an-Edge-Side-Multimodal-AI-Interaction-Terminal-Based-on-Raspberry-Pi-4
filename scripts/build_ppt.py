@@ -117,7 +117,7 @@ def main():
     bullets(s, 0.8, 1.5, 11.8, 5.2, [
         "云端 LLM/VLM 依赖网络，存在隐私、延迟与成本问题",
         "边缘设备算力提升：量化推理让小模型在 ARM CPU 上可运行",
-        "目标：在树莓派 4B 上离线运行 Qwen2.5-0.5B 与 SmolVLM-500M",
+        "目标：在树莓派 4B 上离线运行 Qwen2.5-1.5B 与 SmolVLM-500M",
         "通过 Web 聊天界面把自然语言转成 STM32 的硬件动作",
         "形成「语言 → 命令 → 执行 → 回读」的端到端闭环",
         "扩展为蓝桥杯 CT117E-M4 专用 AI 助教：板卡/外设/代码/真题",
@@ -158,12 +158,12 @@ def main():
     # 6 LLM/VLM performance
     s = prs.slides.add_slide(prs.slide_layouts[6])
     title_bar(s, "边缘推理性能", 6)
-    textbox(s, 0.8, 1.5, 5.6, 0.5, "LLM：Qwen2.5-0.5B-Instruct Q4_K_M", 22, True, ACCENT)
+    textbox(s, 0.8, 1.5, 5.6, 0.5, "LLM：Qwen2.5-1.5B-Instruct Q4_K_M", 22, True, ACCENT)
     bullets(s, 0.8, 2.1, 5.6, 4.2, [
-        "38 completion tokens / 7.04 s",
-        "解码 7.26 tok/s；prompt 19.09 tok/s",
+        "160 completion tokens / ~53 s",
+        "解码 3.02 tok/s；prompt 6.9 tok/s",
         "中文回答正常；FastAPI SSE 流式",
-        "内存占用约 0.4GB；温度 35°C",
+        "内存约 1.2GB；开放问题 40–120s",
     ], 17)
     textbox(s, 6.6, 1.5, 5.9, 0.5, "VLM：SmolVLM-500M-Instruct Q8", 22, True, GREEN)
     bullets(s, 6.6, 2.1, 5.9, 4.2, [
@@ -173,7 +173,7 @@ def main():
         "CPU 推理，暂不做实时摄像头",
     ], 17)
     textbox(s, 0.8, 6.5, 11.8, 0.4,
-            "结论：0.5B 对话可用，VLM 适合低频单图；1.5B/3B 需权衡速度与内存",
+            "结论：1.5B 通用解释明显优于 0.5B；VLM 适合低频单图；更大模型需权衡速度与内存",
             14, False, MUTED, PP_ALIGN.CENTER)
 
     # 7 web + NL
@@ -184,6 +184,8 @@ def main():
         "浅蓝白主界面 + 5 套可切换配色",
         "SSE 流式输出、会话历史",
         "设备面板：8 LED / 双 ADC / 双 PWM",
+        "操作后自动生成代码讲解（时钟→引脚→main）",
+        "代码随灯号/文本/通道/占空比变化",
         "图片上传 → /api/vision",
         "规则路由优先：中文指令直接执行",
         "知识库直答 + 资料来源卡片",
@@ -204,8 +206,8 @@ def main():
     bullets(s, 6.7, 2.2, 5.8, 4.4, [
         "硬件命令 → 规则路由（不经 LLM）",
         "板卡/源码/课件 → 直答 0.04s + 来源",
-        "开放技术问题 → 0.5B RAG（20–35s）",
-        "完全未命中 → 0.03s 范围提示",
+        "开放问题 → 1.5B 通用回答（40–120s）",
+        "引脚/事实/概念 → 确定性直答（毫秒级）",
         "前端显示“知识库直答/RAG 生成”",
     ], 16)
     textbox(s, 0.8, 6.6, 11.8, 0.4,

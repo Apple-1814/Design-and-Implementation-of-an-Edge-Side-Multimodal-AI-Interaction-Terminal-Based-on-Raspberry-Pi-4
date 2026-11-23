@@ -149,6 +149,7 @@ GROUPS = [
 ]
 
 PER_Q = {
+    "mcu": [["STM32G431RBT6"], ["LQFP64"], ["STM32G431RBT6"], ["128KB"], ["80MHz"], ["Cortex-M4"]],
     "resources": [["8"], ["4"], ["ADC1", "ADC2"], ["PWM1", "PWM2"], ["AT24C02"], ["CMSIS-DAP"]],
     "protocol": [["LED"], ["LCD"], ["ADC"], ["PWM"], ["PONG"], ["LEDALL"]],
     "board_more": [["AT24C02"], ["2.4"], ["CMSIS-DAP"], ["Keil"], ["5V"], ["J1"]],

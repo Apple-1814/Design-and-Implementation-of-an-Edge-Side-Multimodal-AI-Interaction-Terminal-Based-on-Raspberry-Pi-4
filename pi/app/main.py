@@ -24,7 +24,7 @@ from .knowledge import build_messages, kb
 from .serial_service import SerialService
 from .tool_router import route_tool
 
-APP_VERSION = "0.8.3"
+APP_VERSION = "0.9.6"
 LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
 VLM_URL = "http://127.0.0.1:8081/v1/chat/completions"
 
@@ -134,6 +134,12 @@ def _clean_model_text(text: str, has_sources: bool) -> str:
         return ""
     if not has_sources:
         text = re.sub(r"[ \t]*\[\d+\](?:[ \t]*\[\d+\])*", "", text)
+        text = re.sub(
+            r"^\s*(?:结论|步骤/代码要点|步骤|代码要点|易错点|原理解释)\s*[：:]\s*",
+            "",
+            text,
+            flags=re.M,
+        )
     # Strip fragments of the system prompt that the model occasionally echoes.
     text = re.sub(
         r"\[[^\]]*(?:300\s*字以内|Markdown|不要编造|检索资料|回答要求)[^\]]*\]",
@@ -623,28 +629,9 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
         return StreamingResponse(no_fast_stream(), media_type="text/event-stream")
 
-    # A definition question outside both the glossary and the board card:
-    # say so instead of letting the 0.5B invent an answer.
-    if def_term:
-        unknown_text = (
-            f"我暂时没有收录「{def_term}」的可靠定义。"
-            "建议查阅教材或官方手册；如果它是 CT117E-M4 的模块，"
-            "可以问我具体引脚、配置或代码。"
-        )
-
-        async def unknown_stream():
-            yield "data: " + json.dumps(
-                {"sources": [], "knowledge": {"hits": 0, "chunks": len(kb.docs)}, "mode": "concept"},
-                ensure_ascii=False,
-            ) + "\n\n"
-            yield "data: " + json.dumps(
-                {"choices": [{"delta": {"content": unknown_text}}], "mode": "concept"},
-                ensure_ascii=False,
-            ) + "\n\n"
-            yield "data: [DONE]\n\n"
-
-        return StreamingResponse(unknown_stream(), media_type="text/event-stream")
-
+    # Unknown definitions continue to the local model: the assistant should
+    # attempt every question, with cleanup preventing repetition/hallucinated
+    # citations.  Known terms still use the fast deterministic glossary.
     context, sources = ("", [])
     if (
         req.use_knowledge
@@ -677,7 +664,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         if meta_re.search(last):
             meta_text = (
                 "我是**蓝桥杯嵌入式 AI 助教**，运行在树莓派 4B 上。\n\n"
-                "- 底层语言模型：**Qwen2.5-0.5B-Instruct（GGUF Q4_K_M）**，本地推理，不依赖云端 API。\n"
+                "- 底层语言模型：**Qwen2.5-1.5B-Instruct（GGUF Q4_K_M）**，本地推理，不依赖云端 API。\n"
                 f"- 知识库：**CT117E-M4 专用知识库**，当前 {len(kb.docs)} 个片段 / {len({d.get('source') for d in kb.docs})} 个来源，覆盖板卡、外设、代码与真题。\n"
                 "- 我还能通过规则路由控制板载 LED、LCD、ADC、PWM（例如“让 LED1 亮起来”）。\n\n"
                 "你可以直接问：“LED 怎么点亮？”“USART1 怎么配置？”“I2C 读写 AT24C02 怎么写？”"
@@ -699,12 +686,19 @@ async def chat(req: ChatRequest) -> StreamingResponse:
     # makes the 0.5B model copy unrelated code or mix topics.
     if general_def_re.search(last) or def_term or re.search(r"天气|气温|下雨|下雪|新闻|股价", last):
         llm_history = []
-    messages = build_messages(llm_history, last, context, sources)
+    messages = build_messages(
+        llm_history, last, context, sources,
+        style="definition" if def_term else "",
+    )
+    # Board facts are answered deterministically; the LLM only handles open
+    # questions.  160 tokens truncated explanations mid-sentence, so give the
+    # 1.5B room for a complete definition (about 100–130s on the Pi).
+    llm_max_tokens = min(max(req.max_tokens, 320), 512)
     payload = {
         "model": "qwen",
         "messages": messages,
         "stream": True,
-        "max_tokens": min(req.max_tokens, 160),
+        "max_tokens": llm_max_tokens,
         "temperature": req.temperature,
         # The 0.5B model tends to repeat the same sentence when uncertain.
         "repeat_penalty": 1.15,

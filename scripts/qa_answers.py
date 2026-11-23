@@ -95,10 +95,33 @@ BOARD = [
     ("PWM1 是哪个引脚？", ["PA2"], "knowledge"),
 ]
 
+PIN = [
+    ("定时器的引脚有哪些？", ["PA2", "PA3"], "knowledge"),
+    ("定时器用哪些引脚？", ["PA2", "PA3"], "knowledge"),
+    ("LED 的引脚有哪些？", ["PC8", "PC15", "PD2"], "knowledge"),
+    ("USART1 的引脚是哪些？", ["PA9", "PA10"], "knowledge"),
+    ("LCD 的引脚有哪些？", ["并口"], "knowledge"),
+    ("SWD 需要接哪些线？", ["SWCLK", "SWDIO"], "knowledge"),
+]
+
+FACT = [
+    ("板子有几个 LED？", ["8"], "knowledge"),
+    ("ADC 查询命令是什么？", ["ADC?"], "knowledge"),
+    ("PWM 设置命令是什么？", ["PWM"], "knowledge"),
+    ("PING 命令返回什么？", ["PONG"], "knowledge"),
+    ("板子主控芯片是什么？", ["STM32G431RBT6"], "knowledge"),
+    ("板子主频是多少？", ["80MHz"], "knowledge"),
+    ("板子供电是多少伏？", ["5V"], "knowledge"),
+    ("LCD 是多少寸？", ["2.4"], "knowledge"),
+    ("AT24C02 的 I2C 地址是多少？", ["0x50"], "knowledge"),
+    ("USART1 的波特率是多少？", ["9600"], "knowledge"),
+]
+
 OPEN = [
-    "为什么会有四季？",
-    "地球为什么是圆的？",
-    "给我讲一个简短的笑话。",
+    ("为什么会有四季？", []),
+    ("地球为什么是圆的？", []),
+    ("给我讲一个简短的笑话。", []),
+    ("什么是傅里叶变换？", ["频率"]),
 ]
 
 
@@ -125,6 +148,8 @@ def run_case(case_id, category, question, must, mode=None, timeout=180):
     try:
         result = chat([{"role": "user", "content": question}], timeout=timeout, max_tokens=160)
         failures = quality_failures(result, must=must, mode=mode)
+        if category in ("引脚", "事实") and "```" in (result.get("content") or ""):
+            failures.append("code dump on direct-fact question")
         return {
             "id": case_id,
             "cat": category,
@@ -152,7 +177,7 @@ def run_case(case_id, category, question, must, mode=None, timeout=180):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--group", choices=["all", "def", "compare", "faq", "board", "open"], default="all")
+    ap.add_argument("--group", choices=["all", "def", "compare", "faq", "board", "pin", "fact", "open"], default="all")
     ap.add_argument("--out", default=str(Path.home() / "ai-terminal" / "logs"))
     args = ap.parse_args()
 
@@ -171,9 +196,15 @@ def main():
     if args.group in ("board", "all"):
         for idx, (q, must, mode) in enumerate(BOARD, 1):
             results.append(run_case(f"board_{idx}", "板卡", q, must, mode))
+    if args.group in ("pin", "all"):
+        for idx, (q, must, mode) in enumerate(PIN, 1):
+            results.append(run_case(f"pin_{idx}", "引脚", q, must, mode))
+    if args.group in ("fact", "all"):
+        for idx, (q, must, mode) in enumerate(FACT, 1):
+            results.append(run_case(f"fact_{idx}", "事实", q, must, mode))
     if args.group in ("open", "all"):
-        for idx, q in enumerate(OPEN, 1):
-            results.append(run_case(f"open_{idx}", "开放", q, [], None, timeout=240))
+        for idx, (q, must) in enumerate(OPEN, 1):
+            results.append(run_case(f"open_{idx}", "开放", q, must, None, timeout=300))
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)

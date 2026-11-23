@@ -10,9 +10,9 @@ mkdir -p "$LOGS"
 
 export LD_LIBRARY_PATH="$LLAMA_DIR/build/bin:${LD_LIBRARY_PATH:-}"
 
-echo "Starting LLM (Qwen2.5-0.5B) on 127.0.0.1:8080 ..."
+echo "Starting LLM (Qwen2.5-1.5B) on 127.0.0.1:8080 ..."
 nohup "$LLAMA_DIR/build/bin/llama-server" \
-  -m "$MODELS/qwen2.5-0.5b-instruct-q4_k_m.gguf" \
+  -m "$MODELS/qwen2.5-1.5b-instruct-q4_k_m.gguf" \
   --host 127.0.0.1 --port 8080 -t 4 -c 2048 \
   > "$LOGS/llama_server.log" 2>&1 &
 echo "LLM pid=$!"

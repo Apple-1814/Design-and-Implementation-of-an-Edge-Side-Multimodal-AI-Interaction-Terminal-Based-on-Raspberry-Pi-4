@@ -410,6 +410,36 @@ class KnowledgeBase:
         # Pin/identifier/number questions: PC8, USART1, TIM15, 9600 ...
         return bool(re.search(r"[A-Za-z]{2,}\d+|\d{3,}", q))
 
+    def fact_summary(self, query: str) -> str:
+        """Return a one-shot fact answer for count/command/model/address questions."""
+        q = query or ""
+        if re.search(r"怎么|如何|为什么|原理|计算|配置|代码|实现|步骤|函数", q):
+            return ""
+        if not re.search(
+            r"多少|几伏|几位|几路|几个|几组|是什么|什么|哪个|哪些|地址|型号|"
+            r"频率|波特率|尺寸|供电|命令|返回|多大",
+            q,
+        ):
+            return ""
+        for pattern, answer in FACT_SUMMARY:
+            if re.search(pattern, q, re.I):
+                return answer
+        return ""
+
+    def pin_summary(self, query: str, intent_query: str = "") -> str:
+        """Return a direct pin list for “哪些引脚/接哪里/哪个脚” questions.
+
+        ``query`` selects the module (current turn), while ``intent_query``
+        may include the previous turn so “那 PWM 呢” still counts as a pin
+        question when the previous question was “LED 在哪个引脚”.
+        """
+        q = query or ""
+        intent = intent_query or q
+        if not re.search(r"引脚|管脚|哪个脚|哪些脚|接哪|接到哪|怎么接|接线|pin\b", intent, re.I):
+            return ""
+        answers = [answer for pattern, answer in PIN_SUMMARY if re.search(pattern, q, re.I)]
+        return "\n\n".join(answers)
+
     def lookup_term(self, term: str) -> str:
         """Look up a glossary term by exact match, then longest substring."""
         t = re.sub(r"[\s？?。！!，,、]", "", term or "").lower()
@@ -632,6 +662,16 @@ class KnowledgeBase:
         source snippet are already the answer; return them directly and keep
         the LLM for open-ended conversation.
         """
+        # Direct pin/fact questions use the current module focus, not the
+        # previous turn's module concatenated for retrieval.
+        focus_query = focus or query
+        pin_text = self.pin_summary(focus_query, query)
+        if pin_text:
+            return pin_text, []
+        fact_text = self.fact_summary(focus_query)
+        if fact_text:
+            return fact_text, []
+
         hits = self.search(query, top_k=max(top_k, 20), max_per_source=6)
         if not hits or hits[0].get("score", 0) < 7:
             return None
@@ -658,6 +698,11 @@ class KnowledgeBase:
         q_low = active.lower()
         want_code = bool(CODE_HINTS.search(q_low))
         want_exam = bool(EXAM_HINTS.search(query or ""))
+        want_fact = bool(re.search(
+            r"引脚|管脚|哪些|哪个|多少|是什么|地址|型号|频率|电压|命令|返回|"
+            r"几位|几路|几个|接哪|锁存|波特率|主频|供电",
+            q_low,
+        ))
         technical = bool(re.search(
             r"nvic|中断|捕获|capture|pwm|usart|uart|串口|i2c|iic|adc|lcd|led|rtc|tim|定时器|寄存器|时钟|优先级",
             q_low,
@@ -723,6 +768,13 @@ class KnowledgeBase:
                 heading = "**板卡要点" + (f"（{section.split('/')[-1].strip()}）" if max_sections > 1 else "") + "**" + "\n"
                 parts.append(heading + text)
                 used.append(top)
+
+        # Simple fact questions get the board card only; code/PPT dumps do not
+        # answer “which pin / what address / how many”.
+        if want_fact and parts and not want_exam and not re.search(
+            r"函数|代码|例程|怎么写|初始化", q_low
+        ):
+            return "\n\n".join(parts), used
 
         if want_exam and exam_hits:
             top = exam_hits[0]
@@ -903,6 +955,70 @@ SYSTEM_PROMPT = """你是蓝桥杯嵌入式 AI 助教，专精 CT117E-M4（STM32
 - 旧平台（F103/STC15）只能参考原理，不能照抄引脚；中文回答，300 字以内，代码用 Markdown。"""
 
 
+# Direct pin answers: a “哪些引脚” question should get a short pin list,
+# never a code/PPT dump.
+PIN_SUMMARY = [
+    (r"led|灯", "**LED 引脚**\n- 数据：**PC8–PC15**（LD1–LD8）\n- 锁存：**PD2**（高电平脉冲，74HC573 下降沿锁存）\n- 极性：**低电平点亮**；PC8–PC15 推挽输出，默认高（全灭）。"),
+    (r"按键|key", "**按键引脚**\n- KEY1=**PB0**，KEY2=**PB1**，KEY3=**PB2**，KEY4=**PA0**\n- 按下为低电平，扫描时需消抖（10–20ms）。"),
+    (r"usart|uart|串口|daplink|rxd|txd", "**USART1 引脚**\n- **PA9 = TX，PA10 = RX**，复用 `GPIO_AF7_USART1`\n- GPIO 必须配 `GPIO_MODE_AF_PP`；板载 DAPLink VCP 实测 9600 8N1。"),
+    (r"i2c|iic|eeprom|24c02", "**I2C / EEPROM 引脚**\n- **PB6 = SCL，PB7 = SDA**，开漏复用并外加上拉\n- AT24C02 7 位地址 **0x50**（写 0xA0 / 读 0xA1）。"),
+    (r"adc|电位器", "**ADC 引脚**\n- **ADC1 = PB12（ADC1_IN11，R38）**\n- **ADC2 = PB15（ADC2_IN15，R37）**\n- 12 位，0–4095 对应 0–3.3V；模拟模式，采样后可做平均/中值滤波。"),
+    (r"pwm|占空比|定时器|tim", "**PWM / 定时器引脚**\n- **PWM1 = PA2（TIM15_CH1）**\n- **PWM2 = PA3（TIM15_CH2）**\n- 两路 1kHz，复用 `GPIO_AF9_TIM15`，`GPIO_MODE_AF_PP`。\n- TIM1/2/3/4 等其它定时器没有固定接板载外设；若从扩展接口引出，需按原理图和数据手册复用表确认。"),
+    (r"swd|调试|下载", "**SWD 调试引脚**\n- **SWCLK、SWDIO、GND**（NRST 可选）\n- 板载调试器是 **CMSIS-DAP**，不是 ST-Link，USB 接 Pi 后为 `/dev/ttyACM0`。"),
+    (r"lcd|液晶", "**LCD 引脚**\n- 2.4 寸 TFT 为**板载并口屏**，引脚已在板上固定，不需要外部接线\n- 具体并口数据/控制引脚以 CT117E-M4 原理图为准；G431 不要套用 F103 的 FSMC 写法。"),
+    (r"rtc|实时时钟", "**RTC 引脚**\n- **32.768kHz LSE 晶振**已在板上，不需要外部接线\n- RTC 无外部数据引脚；备份域由 VBAT 供电，读取先 `HAL_RTC_GetTime()` 再 `HAL_RTC_GetDate()`。"),
+]
+
+
+# Direct answers for common single-fact questions.  Without this layer the
+# retriever tends to return a whole module section (or code/PPT) for questions
+# such as “板子有几个 LED” or “ADC 查询命令是什么”.
+FACT_SUMMARY = [
+    (r"(?:几路|几个|多少).{0,8}adc.{0,10}(?:和|与).{0,8}pwm|(?:几路|几个|多少).{0,8}pwm.{0,10}(?:和|与).{0,8}adc",
+     "**2 路 ADC + 2 路 PWM**：ADC1=PB12（IN11）、ADC2=PB15（IN15）；PWM1=PA2（TIM15_CH1）、PWM2=PA3（TIM15_CH2），1kHz。"),
+    (r"(?:几个|多少|几路|几组).{0,8}(?:led|灯)|(?:led|灯).{0,8}(?:几个|多少|几路)",
+     "板载 **8 个 LED**（LD1–LD8）：数据口 PC8–PC15，PD2 锁存，低电平点亮。"),
+    (r"(?:几个|多少).{0,8}按键|按键.{0,8}(?:几个|多少)",
+     "板载 **4 个按键**：KEY1=PB0、KEY2=PB1、KEY3=PB2、KEY4=PA0，按下为低电平。"),
+    (r"adc.{0,12}(?:满量程|参考电压|vref)|(?:满量程|参考电压).{0,8}adc",
+     "ADC 满量程为 **3.3V（VREF+）**：12 位码值 4095 对应 3.3V，1 LSB≈0.806mV。"),
+    (r"(?:几路|几个|多少).{0,8}adc|adc.{0,8}(?:几路|几个|多少)",
+     "板载 **2 路 12 位 ADC**：ADC1=PB12（ADC1_IN11）、ADC2=PB15（ADC2_IN15），0–4095 对应 0–3.3V。"),
+    (r"(?:几路|几个|多少).{0,8}pwm|pwm.{0,8}(?:几路|几个|多少)",
+     "板载 **2 路 PWM**：PWM1=PA2（TIM15_CH1）、PWM2=PA3（TIM15_CH2），1kHz。"),
+    (r"adc.{0,8}(?:查询|读取|命令)|(?:查询|读取).{0,8}adc",
+     "ADC 查询命令：**`ADC?`** 读 ADC1，**`ADC2?`** 读 ADC2；返回 `OK ADC <值>` / `OK ADC2 <值>`。"),
+    (r"pwm.{0,8}(?:设置命令|命令)|(?:设置|调节).{0,8}pwm",
+     "PWM 设置命令：**`PWM <1|2> <0-100>`**，例如 `PWM 1 50`；回读用 `PWM?` / `PWM2?`。"),
+    (r"led.{0,8}(?:单灯|命令)|(?:单灯|点亮).{0,8}led",
+     "LED 命令：**`LED <1-8> <0|1>`**（如 `LED 1 1`）；全亮/全灭用 `LEDALL FF` / `LEDALL 00`。代码中对应 `LED_Disp(0xFF)` 全亮、`LED_Disp(0x00)` 全灭。"),
+    (r"lcd.{0,8}(?:显示|命令)|(?:显示|清屏).{0,8}lcd",
+     "LCD 命令：**`LCD <行> <文本>`** 显示字符串，**`LCDCLR`** 清屏。"),
+    (r"ping.{0,10}(?:返回|命令|什么)|(?:返回|命令).{0,8}ping",
+     "`PING` 返回 **`OK PONG`**；用于检查 Pi↔STM32 串口链路。"),
+    (r"(?:主控|mcu|芯片).{0,8}(?:型号|是什么|是哪个)|(?:主控|mcu|芯片)型号",
+     "主控是 **STM32G431RBT6**：Cortex-M4，LQFP64，128KB Flash，32KB SRAM，最高 80MHz。"),
+    (r"flash|ram|sram",
+     "STM32G431RBT6：**128KB Flash，32KB SRAM**；主频最高 80MHz。"),
+    (r"主频|最高频率|cpu 频率",
+     "板卡主频 **80MHz**：HSE 24MHz，经 PLL（M=3,N=20,P=2）倍频得到。"),
+    (r"(?:板子|开发板|板卡).{0,8}(?:供电|几伏|多少伏)|供电.{0,8}(?:多少|几伏|多少伏)",
+     "开发板供电为 **5V**（USB 或外部 5V 输入）；MCU I/O 为 3.3V 逻辑，禁止 5V 直接接 GPIO。"),
+    (r"lcd.{0,8}(?:多少寸|尺寸|多大)|(?:多少寸|尺寸).{0,8}lcd",
+     "板载 LCD 为 **2.4 寸 TFT**，并口驱动，官方资源包提供 `lcd.c`/字库。"),
+    (r"24c02|eeprom",
+     "板载 EEPROM 为 **AT24C02**，I2C 7 位地址 **0x50**（写 0xA0 / 读 0xA1），接 PB6(SCL)/PB7(SDA)。"),
+    (r"(?:usart|串口|uart).{0,10}(?:波特率|速率)|(?:波特率|速率).{0,8}(?:usart|串口)",
+     "USART1 波特率 **9600 8N1**（板载 DAPLink VCP 实测）；TX=PA9、RX=PA10，GPIO 必须配 `AF_PP`。"),
+    (r"rtc.{0,10}(?:时钟源|晶振)|(?:时钟源|晶振).{0,8}rtc",
+     "RTC 时钟源：**LSE 32.768kHz 板载晶振**（或 LSI）；读取先 `HAL_RTC_GetTime()` 再 `HAL_RTC_GetDate()`。"),
+    (r"pwm.{0,8}频率|频率.{0,8}pwm",
+     "板载 PWM 频率为 **1kHz**：TIM15 时钟 80MHz，PSC=79、ARR=999。"),
+    (r"adc.{0,8}(?:几位|分辨率)|(?:几位|分辨率).{0,8}adc",
+     "ADC 为 **12 位**：结果 0–4095，参考 3.3V，1 LSB≈0.806mV。"),
+]
+
+
 # Deterministic answers for standalone concept questions.  The 0.5B model
 # tends to ramble or repeat on "什么是 X"; these cards keep the common terms
 # accurate, fast and citation-free.  Longest keys must come first.
@@ -1028,7 +1144,7 @@ FAQ_ANSWERS = [
 
 
 def build_messages(history: List[dict], question: str, context: str,
-                   sources: List[dict]) -> List[dict]:
+                   sources: List[dict], style: str = "") -> List[dict]:
     """Build a compact Qwen prompt: system + at most one prior turn + context."""
     now = datetime.now()
     weekdays = "一二三四五六日"
@@ -1066,8 +1182,15 @@ def build_messages(history: List[dict], question: str, context: str,
             "\n\n依据资料回答；资料没有的内容要说明不确定；资料与问题无关时忽略资料。"
         )
     else:
+        style_note = ""
+        if style == "definition":
+            style_note = (
+                "这是术语解释题：先用一句话给出定义，再用 3–5 句说明原理、用途或例子；"
+                "不要使用“结论/步骤/代码要点/易错点”标题，不要贴无关代码。\n\n"
+            )
         user = (
             "【检索资料】未命中知识库。\n\n"
+            + style_note +
             "请直接回答下面的问题，不要复述问题，也不要重复句子。\n"
             "没有检索资料，不要标注 [1][2] 或编造参考文献。\n"
             "- 一般概念、代码含义、学习建议：用通用知识简短回答；\n"

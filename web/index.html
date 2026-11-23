@@ -10,7 +10,7 @@
         localStorage.getItem("ai-terminal-theme-v1") || "light";
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="style.css?v=0.8.3">
+  <link rel="stylesheet" href="style.css?v=0.9.6">
 </head>
 <body>
   <div class="app">
@@ -35,7 +35,11 @@
     <main class="main">
       <header class="topbar">
         <div class="topbar-left">
-          <div class="model-pill">Qwen2.5-0.5B · 本地 RAG</div>
+          <div class="view-tabs" role="tablist" aria-label="页面切换">
+            <button class="view-tab active" data-view="chat" role="tab" aria-selected="true">AI 对话</button>
+            <button class="view-tab" data-view="guide" role="tab" aria-selected="false">代码讲解</button>
+          </div>
+          <div class="model-pill">Qwen2.5-1.5B · 本地 RAG</div>
           <div class="kb-pill" id="kbPill">知识库加载中…</div>
           <label class="theme-picker"><span>配色</span>
             <select id="themeSelect" aria-label="配色主题">
@@ -52,31 +56,86 @@
         </div>
       </header>
 
-      <section class="messages" id="messages"></section>
+      <section class="view chat-view" id="chatView">
+        <section class="messages" id="messages"></section>
 
-      <div class="composer-wrap">
-        <div class="image-preview" id="imagePreview" hidden>
-          <img id="imagePreviewImg" alt="preview">
-          <button id="imageClear" title="移除">×</button>
+        <div class="composer-wrap">
+          <div class="image-preview" id="imagePreview" hidden>
+            <img id="imagePreviewImg" alt="preview">
+            <button id="imageClear" title="移除">×</button>
+          </div>
+          <div class="composer">
+            <button class="icon-btn" id="imageBtn" title="上传图片">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+                <circle cx="8.5" cy="9.5" r="1.5"></circle>
+                <path d="M4 17l5-5 4 4 3-3 4 4"></path>
+              </svg>
+            </button>
+            <input type="file" id="imageInput" accept="image/*" hidden>
+            <textarea id="input" rows="1" placeholder="问板卡、外设、代码、真题…（Enter 发送，Shift+Enter 换行）"></textarea>
+            <button class="send-btn" id="sendBtn" title="发送">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 12l16-8-6 16-3-7-7-1z"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="hint">本地知识库 RAG · 板卡问题通常秒答 · 开放问题由本地模型生成，可能需要 40–120 秒</div>
         </div>
-        <div class="composer">
-          <button class="icon-btn" id="imageBtn" title="上传图片">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8">
-              <rect x="3" y="4" width="18" height="16" rx="3"></rect>
-              <circle cx="8.5" cy="9.5" r="1.5"></circle>
-              <path d="M4 17l5-5 4 4 3-3 4 4"></path>
-            </svg>
-          </button>
-          <input type="file" id="imageInput" accept="image/*" hidden>
-          <textarea id="input" rows="1" placeholder="问板卡、外设、代码、真题…（Enter 发送，Shift+Enter 换行）"></textarea>
-          <button class="send-btn" id="sendBtn" title="发送">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 12l16-8-6 16-3-7-7-1z"></path>
-            </svg>
-          </button>
+      </section>
+
+      <section class="view guide-view" id="guideView" hidden>
+        <div class="guide-inner">
+          <div class="guide-head">
+            <div class="guide-head-text">
+              <div class="guide-kicker" id="guideKicker">控制操作 · 代码讲解</div>
+              <h1 id="guideTitle">执行一次控制操作</h1>
+              <p id="guideSummary">在右侧控制面板操作 LED、LCD、ADC 或 PWM，这里会自动展示从时钟、引脚到 main 的完整代码和配置流程。</p>
+            </div>
+            <div class="guide-actions">
+              <button class="ghost" id="guideCopy" hidden>复制代码</button>
+              <button class="ghost" id="guideBack">返回对话</button>
+            </div>
+          </div>
+
+          <div class="guide-empty" id="guideEmpty">
+            <p>也可以先预览某个模块的完整配置：</p>
+            <div class="guide-chips">
+              <button data-guide="led">LED</button>
+              <button data-guide="lcd">LCD</button>
+              <button data-guide="adc">ADC</button>
+              <button data-guide="pwm">PWM</button>
+            </div>
+          </div>
+
+          <div class="guide-grid" id="guideContent" hidden>
+            <article class="guide-steps">
+              <h2>配置流程</h2>
+              <ol id="guideSteps"></ol>
+              <div class="guide-files">
+                <div class="guide-files-title">对应工程文件</div>
+                <div id="guideFiles"></div>
+              </div>
+            </article>
+            <div class="guide-code-col">
+              <article class="guide-action-card">
+                <div class="guide-action-head">
+                  <span>本次操作代码</span>
+                  <span class="guide-action-label" id="guideActionLabel">示例</span>
+                </div>
+                <pre class="guide-action-pre"><code id="guideActionCode"></code></pre>
+              </article>
+              <article class="guide-code-card">
+                <div class="guide-code-head">
+                  <span>完整代码 · 时钟 → 引脚 → 外设 → main</span>
+                  <button class="ghost" id="guideCopy2">复制</button>
+                </div>
+                <pre class="guide-pre"><code id="guideCode"></code></pre>
+              </article>
+            </div>
+          </div>
         </div>
-        <div class="hint">本地知识库 RAG · 板卡问题通常秒答 · 开放问题由本地模型生成，可能需要 20–60 秒</div>
-      </div>
+      </section>
     </main>
 
     <aside class="panel">
@@ -178,6 +237,7 @@
       <div class="panel-log" id="panelLog"></div>
     </aside>
   </div>
-  <script src="app.js?v=0.8.3"></script>
+  <script src="guides.js?v=0.9.6"></script>
+  <script src="app.js?v=0.9.6"></script>
 </body>
 </html>

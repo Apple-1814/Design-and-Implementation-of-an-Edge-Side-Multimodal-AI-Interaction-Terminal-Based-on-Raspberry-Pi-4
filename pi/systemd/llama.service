@@ -1,5 +1,5 @@
 [Unit]
-Description=Edge AI Terminal - llama.cpp Qwen2.5-0.5B
+Description=Edge AI Terminal - llama.cpp Qwen2.5-1.5B
 After=network-online.target
 Wants=network-online.target
 
@@ -8,7 +8,7 @@ Type=simple
 User=apple
 WorkingDirectory=/home/apple/ai-terminal/llama.cpp
 Environment=LD_LIBRARY_PATH=/home/apple/ai-terminal/llama.cpp/build/bin
-ExecStart=/home/apple/ai-terminal/llama.cpp/build/bin/llama-server -m /home/apple/ai-terminal/models/qwen2.5-0.5b-instruct-q4_k_m.gguf --host 127.0.0.1 --port 8080 -t 4 -c 2048
+ExecStart=/home/apple/ai-terminal/llama.cpp/build/bin/llama-server -m /home/apple/ai-terminal/models/qwen2.5-1.5b-instruct-q4_k_m.gguf --host 127.0.0.1 --port 8080 -t 4 -c 2048
 Restart=on-failure
 RestartSec=5
 

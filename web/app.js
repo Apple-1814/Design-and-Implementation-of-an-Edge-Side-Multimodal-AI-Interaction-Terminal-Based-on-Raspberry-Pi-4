@@ -9,6 +9,13 @@ const state = {
   pendingImage: null,
 };
 
+const guideState = {
+  module: null,
+  code: "",
+  actionCode: "",
+  copyTimer: null,
+};
+
 const messagesEl = $("#messages");
 const inputEl = $("#input");
 const sendBtn = $("#sendBtn");
@@ -121,6 +128,74 @@ function escapeHtml(text) {
     .replaceAll("'", "&#039;");
 }
 
+/* ---------- AI 对话 / 代码讲解 视图切换 ---------- */
+function setView(view) {
+  const next = view === "guide" ? "guide" : "chat";
+  $("#chatView").hidden = next !== "chat";
+  $("#guideView").hidden = next !== "guide";
+  document.querySelectorAll(".view-tab").forEach((tab) => {
+    const active = tab.dataset.view === next;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  if (next === "chat") {
+    requestAnimationFrame(() => messagesEl.scrollTop = messagesEl.scrollHeight);
+  } else {
+    $("#guideView").scrollTop = 0;
+  }
+}
+
+function copyGuideCode(button) {
+  const text = guideState.code || "";
+  if (!text) return;
+  const done = () => {
+    const old = button.textContent;
+    button.textContent = "已复制";
+    clearTimeout(guideState.copyTimer);
+    guideState.copyTimer = setTimeout(() => { button.textContent = old; }, 1200);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done).catch(() => {});
+    return;
+  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); done(); } catch (e) {}
+  ta.remove();
+}
+
+function openGuide(module, detail = "", ctx = {}) {
+  const guide = window.CODE_GUIDES && window.CODE_GUIDES[module];
+  if (!guide) return;
+  guideState.module = module;
+  guideState.code = guide.build ? guide.build(ctx) : guide.code;
+  guideState.actionCode = guide.action ? guide.action(ctx) : "";
+
+  $("#guideKicker").textContent = `${guide.kicker} · 控制代码讲解`;
+  $("#guideTitle").textContent = guide.title;
+  $("#guideSummary").textContent = detail ? `${detail} ｜ ${guide.summary}` : guide.summary;
+  $("#guideActionLabel").textContent = ctx.action ? "对应本次操作" : "示例";
+  $("#guideActionCode").textContent = guideState.actionCode || "/* 本模块没有单独的操作片段 */";
+  $("#guideSteps").innerHTML = guide.steps.map(([title, body]) => `
+    <li>
+      <div class="guide-step-title">${escapeHtml(title)}</div>
+      <p>${escapeHtml(body)}</p>
+    </li>
+  `).join("");
+  $("#guideFiles").innerHTML = guide.files
+    .map((file) => `<code>${escapeHtml(file)}</code>`)
+    .join("");
+  $("#guideCode").textContent = guideState.code;
+  $("#guideEmpty").hidden = true;
+  $("#guideContent").hidden = false;
+  $("#guideCopy").hidden = false;
+  setView("guide");
+}
+
 function renderMarkdown(raw) {
   let text = String(raw || "");
   const codeBlocks = [];
@@ -204,7 +279,7 @@ function thinkingHtml(msg) {
   const label = modelMode ? "本地模型思考中" : "正在检索资料";
   const wait = elapsed ? ` 已等待 ${elapsed}s` : "";
   const note = modelMode
-    ? "0.5B 本地模型可能需要 20–60 秒，请稍候"
+    ? "1.5B 本地模型可能需要 40–120 秒，请稍候"
     : "知识库直答通常 1 秒内完成";
   return `<p class="thinking">${label}…${wait}<br><span>${note}</span></p>`;
 }
@@ -523,6 +598,16 @@ async function refreshKnowledge() {
 }
 
 /* ---------- events ---------- */
+document.querySelectorAll(".view-tab").forEach((tab) => {
+  tab.addEventListener("click", () => setView(tab.dataset.view));
+});
+$("#guideBack").addEventListener("click", () => setView("chat"));
+$("#guideCopy").addEventListener("click", (e) => copyGuideCode(e.currentTarget));
+$("#guideCopy2").addEventListener("click", (e) => copyGuideCode(e.currentTarget));
+document.querySelectorAll("[data-guide]").forEach((btn) => {
+  btn.addEventListener("click", () => openGuide(btn.dataset.guide, "预览"));
+});
+
 messagesEl.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-quick]");
   if (!btn || state.streaming) return;
@@ -548,6 +633,7 @@ $("#newChat").addEventListener("click", () => {
   saveSessions();
   renderSessions();
   renderMessages();
+  setView("chat");
   inputEl.focus();
 });
 
@@ -603,7 +689,20 @@ async function setLed(id, on) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, on }),
     });
-    if (data.ok && data.states && seq === ledSeq) applyLedStates(data.states);
+    if (data.ok && data.states && seq === ledSeq) {
+      // Derive the before/after masks from the device response, not from a
+      // possibly stale UI state after page reload.
+      let afterMask = 0;
+      Object.entries(data.states).forEach(([ledId, value]) => {
+        if (value) afterMask |= 1 << (Number(ledId) - 1);
+      });
+      const bit = 1 << (id - 1);
+      const beforeMask = on ? (afterMask & ~bit) : (afterMask | bit);
+      applyLedStates(data.states);
+      openGuide("led", `刚执行：LED ${id} → ${on ? "亮" : "灭"}`, {
+        action: "led", id, on, beforeMask,
+      });
+    }
   } catch (err) {
     logPanel(`LED${id} 失败：${err.message}`);
   }
@@ -617,7 +716,12 @@ async function setAllLeds(mask) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mask }),
     });
-    if (data.ok && data.states && seq === ledSeq) applyLedStates(data.states);
+    if (data.ok && data.states && seq === ledSeq) {
+      applyLedStates(data.states);
+      openGuide("led", `刚执行：LEDALL 0x${Number(mask).toString(16).toUpperCase().padStart(2, "0")}`, {
+        action: "all", mask,
+      });
+    }
   } catch (err) {
     logPanel(`LED 全控失败：${err.message}`);
   }
@@ -630,15 +734,18 @@ $("#ledAllOff").addEventListener("click", () => setAllLeds(0x00));
 $("#ledRefresh").addEventListener("click", refreshLeds);
 
 $("#lcdSend").addEventListener("click", async () => {
-  await deviceFetch("/api/device/lcd", {
+  const text = $("#lcdText").value || "Hello";
+  const data = await deviceFetch("/api/device/lcd", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ line: 1, text: $("#lcdText").value || "Hello" }),
+    body: JSON.stringify({ line: 1, text }),
   });
+  if (data.ok) openGuide("lcd", `刚执行：LCD 1 "${text}"`, { action: "lcd", text });
 });
 
 $("#lcdClear").addEventListener("click", async () => {
-  await deviceFetch("/api/device/lcd/clear", { method: "POST" });
+  const data = await deviceFetch("/api/device/lcd/clear", { method: "POST" });
+  if (data.ok) openGuide("lcd", "刚执行：LCDCLR 清屏", { action: "lcd_clear" });
 });
 
 let adcBusy = false;
@@ -653,6 +760,11 @@ async function readAdc(ch, silent = false) {
     if (data.ok) {
       $(`#adc${ch}Value`).textContent = data.raw;
       $(`#adc${ch}Voltage`).textContent = Number(data.voltage).toFixed(3) + " V";
+      if (!silent) {
+        openGuide("adc", `刚读取：ADC${ch} = ${data.raw}（${Number(data.voltage).toFixed(3)} V）`, {
+          action: "adc", ch, raw: data.raw, voltage: data.voltage,
+        });
+      }
     }
   } catch (err) {
     if (!silent) logPanel(`ADC${ch} 读取失败：${err.message}`);
@@ -703,6 +815,11 @@ async function applyBothPwm() {
     if (r1.ok) setPwmUi(1, r1.duty);
     if (r2.ok) setPwmUi(2, r2.duty);
     $("#pwmReadback").textContent = `回读 ${r1.duty ?? "--"}% / ${r2.duty ?? "--"}%`;
+    if (r1.ok && r2.ok) {
+      openGuide("pwm", `刚设置：PWM1=${r1.duty}% · PWM2=${r2.duty}%`, {
+        action: "pwm", duty1: r1.duty, duty2: r2.duty,
+      });
+    }
   } catch (err) {
     logPanel(`PWM 设置失败：${err.message}`);
   }

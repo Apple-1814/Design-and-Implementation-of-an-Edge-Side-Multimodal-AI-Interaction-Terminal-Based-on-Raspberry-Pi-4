@@ -218,6 +218,7 @@ SEQUENCES = [
         "id": "follow_pwm",
         "turns": ["LED 在哪个引脚？", "那 PWM 呢？"],
         "must": ["PA2", "PA3"],
+        "must_not": ["LED 引脚"],
     },
     {
         "id": "follow_usart",

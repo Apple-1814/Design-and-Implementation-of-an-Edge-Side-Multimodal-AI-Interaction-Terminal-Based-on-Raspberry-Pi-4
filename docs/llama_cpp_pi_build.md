@@ -86,7 +86,7 @@ cmake --build build --target llama-server -j4
 export LD_LIBRARY_PATH=$HOME/ai-terminal/llama.cpp/build/bin:$LD_LIBRARY_PATH
 
 # LLM
-./build/bin/llama-server -m ~/ai-terminal/models/qwen2.5-0.5b-instruct-q4_k_m.gguf \
+./build/bin/llama-server -m ~/ai-terminal/models/qwen2.5-1.5b-instruct-q4_k_m.gguf \
   --host 127.0.0.1 --port 8080 -t 4 -c 2048
 
 # VLM
@@ -102,4 +102,4 @@ curl http://127.0.0.1:8080/health
 curl http://127.0.0.1:8081/health
 ```
 
-实测：Qwen2.5-0.5B 7.26 tok/s；SmolVLM-500M 单图 34.11s。
+实测：Qwen2.5-1.5B 3.02 tok/s（0.5B 初版 7.26 tok/s）；SmolVLM-500M 单图 34.11s。
